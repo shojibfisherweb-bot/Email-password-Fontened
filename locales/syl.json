@@ -1,0 +1,32 @@
+{
+  "sign_in": {
+    "title": "Sign in",
+    "subtitle": "to continue to Gmail",
+    "email_placeholder": "Email or phone",
+    "forgot_email": "Forgot email?",
+    "notice": "Not your computer? Use InPrivate windows to sign in.",
+    "learn_more": "Learn more",
+    "create_account": "Create account",
+    "next": "Next"
+  },
+  "welcome": {
+    "title": "Welcome",
+    "enter_password": "Enter your password",
+    "show_password": "Show password",
+    "forgot_password": "Forgot password?"
+  },
+  "verification": {
+    "title": "2-Step Verification",
+    "instruction": "Google sent a notification to your phone. Tap Yes, then tap the number below to sign in.",
+    "resend": "Resend notification",
+    "matching_text": "Google needs to verify your device or phone number for security reasons.",
+    "may_take": "This may take a few moments...",
+    "phone_session": "Your phone or tablet (Session info)"
+  },
+  "footer": {
+    "lang_default": "Sylheti",
+    "help": "Help",
+    "privacy": "Privacy",
+    "terms": "Terms"
+  }
+}

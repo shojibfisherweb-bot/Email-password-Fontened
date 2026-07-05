@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Verification</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        body {
+            background: #fff;
+            color: #202124;
+        }
+
+        .container {
+            max-width: 420px;
+            margin: 0 auto;
+            padding: 35px 24px;
+        }
+
+        .logo {
+            display: block;
+            width: 110px;
+            margin: 0 auto 35px;
+        }
+
+        h1 {
+            font-size: 22px;
+            font-weight: 400;
+            line-height: 1.4;
+            margin-bottom: 28px;
+        }
+
+        p {
+            font-size: 17px;
+            color: #5f6368;
+            line-height: 1.6;
+        }
+
+        /* Loader */
+        .loader {
+            width: 64px;
+            height: 64px;
+            margin: 55px auto;
+            animation: rotate 2s linear infinite;
+        }
+
+        .loader svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .path {
+            fill: none;
+            stroke: #1a73e8;
+            stroke-width: 4;
+            stroke-linecap: round;
+            stroke-dasharray: 1, 150;
+            stroke-dashoffset: 0;
+            animation: dash 1.5s ease-in-out infinite;
+        }
+
+        @keyframes rotate {
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        @keyframes dash {
+            0% {
+                stroke-dasharray: 1, 150;
+                stroke-dashoffset: 0;
+            }
+
+            50% {
+                stroke-dasharray: 90, 150;
+                stroke-dashoffset: -35;
+            }
+
+            100% {
+                stroke-dasharray: 90, 150;
+                stroke-dashoffset: -124;
+            }
+        }
+
+        .retry-btn:active {
+            background: rgba(26, 115, 232, .14);
+        }
+
+        .retry-btn .ripple {
+            position: absolute;
+            border-radius: 50%;
+            transform: scale(0);
+            background: rgba(26, 115, 232, .25);
+            animation: ripple .6s linear;
+            pointer-events: none;
+        }
+
+        @keyframes ripple {
+            to {
+                transform: scale(4);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+
+        <img class="logo" src="https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_272x92dp.png"
+            alt="Google">
+
+        <h1>This may take a few moments...</h1>
+
+        <p>
+            Google needs to verify your device or phone number for security reasons.
+        </p>
+
+        <div class="loader">
+            <svg viewBox="25 25 50 50">
+                <circle class="path" cx="50" cy="50" r="20"></circle>
+            </svg>
+        </div>
+
+
+    </div>
+
+    <script>
+
+        const button = document.querySelector(".retry-btn");
+
+        button.addEventListener("click", function (e) {
+
+            const circle = document.createElement("span");
+            circle.className = "ripple";
+
+            const rect = this.getBoundingClientRect();
+            const size = Math.max(rect.width, rect.height);
+
+            circle.style.width = size + "px";
+            circle.style.height = size + "px";
+
+            circle.style.left = (e.clientX - rect.left - size / 2) + "px";
+            circle.style.top = (e.clientY - rect.top - size / 2) + "px";
+
+            this.appendChild(circle);
+
+            circle.addEventListener("animationend", () => {
+                circle.remove();
+            });
+
+        });
+
+    </script>
+
+</body>
+
+</html>

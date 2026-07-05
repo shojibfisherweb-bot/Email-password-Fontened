@@ -1,0 +1,32 @@
+{
+  "sign_in": {
+    "title": "Se connecter",
+    "subtitle": "pour continuer vers Gmail",
+    "email_placeholder": "E-mail ou téléphone",
+    "forgot_email": "Vous avez oublié votre e-mail ?",
+    "notice": "Ce n'est pas votre ordinateur ? Utilisez une fenêtre de navigation privée pour vous connecter.",
+    "learn_more": "En savoir plus",
+    "create_account": "Créer un compte",
+    "next": "Suivant"
+  },
+  "welcome": {
+    "title": "Bienvenue",
+    "enter_password": "Entrez votre mot de passe",
+    "show_password": "Afficher le mot de passe",
+    "forgot_password": "Mot de passe oublié ?"
+  },
+  "verification": {
+    "title": "Vérification en deux étapes",
+    "instruction": "Google a envoyé une notification à votre téléphone. Appuyez sur Oui, puis sur le numéro ci-dessous pour vous connecter.",
+    "resend": "Renvoyer la notification",
+    "matching_text": "Google doit vérifier votre appareil ou votre numéro de téléphone pour des raisons de sécurité.",
+    "may_take": "Cela peut prendre quelques instants...",
+    "phone_session": "Votre téléphone ou tablette (information de session)"
+  },
+  "footer": {
+    "lang_default": "Français",
+    "help": "Aide",
+    "privacy": "Confidentialité",
+    "terms": "Conditions"
+  }
+}
