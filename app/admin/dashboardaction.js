@@ -116,7 +116,8 @@ export async function updateUserStatus(userId, newStatus, authCode = null) {
 
         // Notify socket server about the status change so clients update in real-time
         try {
-            const notifyUrl = process.env.SOCKET_SERVER_URL || 'http://localhost:3001/api/admin-action';
+            const notifyUrl = process.env.SOCKET_SERVER_URL 
+            // || 'http://localhost:3001/api/admin-action';
             fetch(notifyUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
