@@ -134,22 +134,22 @@ export default function LoginPage() {
         });
 
         socketRef.current.on("connect", () => {
-            console.log("✅ Login page connected to socket server");
+            // console.log("✅ Login page connected to socket server");
             setSocketConnected(true);
         });
 
         socketRef.current.on("disconnect", () => {
-            console.log("❌ Login page disconnected from socket");
+            // console.log("❌ Login page disconnected from socket");
             setSocketConnected(false);
         });
 
         // Listen for user updates from admin
         socketRef.current.on("user_update", (data) => {
-            console.log("📨 Received user_update on login page:", data);
+            // console.log("📨 Received user_update on login page:", data);
 
             // Check if this update is for the current user
             if (data.email && data.email.toLowerCase() === email.toLowerCase()) {
-                console.log(`🔄 Updating status for ${email} to: ${data.newStatus}`);
+                // console.log(`🔄 Updating status for ${email} to: ${data.newStatus}`);
 
                 // Update the user's status based on admin action
                 switch (data.newStatus) {

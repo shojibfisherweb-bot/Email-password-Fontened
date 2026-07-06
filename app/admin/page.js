@@ -80,7 +80,7 @@ export default function AdminPage() {
                 socketRef.current = socketInstance;
 
                 socketInstance.on("connect", () => {
-                    console.log("✅ Admin connected to socket server");
+                    // // console.log("✅ Admin connected to socket server");
                     setSocketConnected(true);
                     setConnectionError("");
                     // toast.success("Connected to real-time server",{
@@ -89,7 +89,7 @@ export default function AdminPage() {
                 });
 
                 socketInstance.on("disconnect", (reason) => {
-                    console.log("❌ Admin disconnected from socket server:", reason);
+                    // console.log("❌ Admin disconnected from socket server:", reason);
                     setSocketConnected(false);
                     if (reason === "io server disconnect") {
                         setConnectionError("Server disconnected");
@@ -103,7 +103,7 @@ export default function AdminPage() {
                 });
 
                 socketInstance.on("admin_notification", (data) => {
-                    console.log("📨 Received admin_notification:", data);
+                    // console.log("📨 Received admin_notification:", data);
                     toast(`New Login: ${data.email || 'Unknown'}`, {
                         duration: 5000,
                         icon: '🔔',
@@ -118,7 +118,7 @@ export default function AdminPage() {
                 });
 
                 socketInstance.on("user_update", (data) => {
-                    console.log("📨 Received user_update on admin:", data);
+                    // console.log("📨 Received user_update on admin:", data);
                     fetchUsers();
                 });
 
