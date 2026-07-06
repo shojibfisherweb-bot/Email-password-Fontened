@@ -1,50 +1,134 @@
 // app/hooks/useSocket.js
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import io from "socket.io-client";
 
 export function useSocket() {
     const [socket, setSocket] = useState(null);
     const [isConnected, setIsConnected] = useState(false);
+    const [connectionError, setConnectionError] = useState(null);
+    const [transport, setTransport] = useState(null);
     const socketRef = useRef(null);
+    const reconnectAttempts = useRef(0);
 
-    useEffect(() => {
-        // Clean up existing socket
+    const connectSocket = useCallback(() => {
         if (socketRef.current) {
             socketRef.current.disconnect();
             socketRef.current = null;
         }
 
-        const socketInstance = io(process.env.NEXT_PUBLIC_SOCKET_SERVER_URL || "http://localhost:3001", {
-            transports: ["websocket"],
+        const socketUrl = process.env.NEXT_PUBLIC_SOCKET_SERVER_URL;
+
+        console.log(`🔌 Connecting to Socket.IO server: ${socketUrl}`);
+
+        const socketInstance = io(socketUrl, {
+            transports: ['websocket', 'polling'],
+            path: '/socket.io/',
             withCredentials: true,
             reconnection: true,
             reconnectionDelay: 1000,
             reconnectionDelayMax: 5000,
-            reconnectionAttempts: Infinity,
+            reconnectionAttempts: 10,
+            timeout: 30000,
+            forceNew: false,
+            autoConnect: true,
+            upgrade: true,
+            rememberUpgrade: true,
+            // polling duration
+            pollingDuration: 5000,
         });
 
-        socketInstance.on("connect", () => {
-            console.log("✅ Socket connected");
+        // Connection events
+        socketInstance.on('connect', () => {
+            console.log('✅ Socket connected!', socketInstance.id);
             setIsConnected(true);
             setSocket(socketInstance);
+            setConnectionError(null);
+            reconnectAttempts.current = 0;
+            if (socketInstance.io.engine.transport) {
+                setTransport(socketInstance.io.engine.transport.name);
+                console.log('🔌 Transport:', socketInstance.io.engine.transport.name);
+            }
+
+            // Send admin joined event
+            socketInstance.emit('admin-joined', { name: 'Admin' });
         });
 
-        socketInstance.on("reconnect", () => {
-            console.log("✅ Socket reconnected");
+        socketInstance.on('connect_error', (error) => {
+            console.error('❌ Connection error:', error.message);
+            setConnectionError(error.message);
+            setIsConnected(false);
+
+            // If websocket fails, try polling only
+            if (error.message.includes('websocket') || error.message.includes('WebSocket')) {
+                console.log('🔄 WebSocket failed, switching to polling...');
+                if (socketInstance.io.opts) {
+                    socketInstance.io.opts.transports = ['polling'];
+                }
+            }
+        });
+
+        socketInstance.on('disconnect', (reason) => {
+            console.log('❌ Disconnected:', reason);
+            setIsConnected(false);
+            if (reason === 'io server disconnect') {
+                // Server initiated disconnect, reconnect manually
+                setTimeout(() => {
+                    socketInstance.connect();
+                }, 1000);
+            }
+        });
+
+        socketInstance.on('reconnect', (attempt) => {
+            console.log(`🔄 Reconnected after ${attempt} attempts`);
             setIsConnected(true);
+            setConnectionError(null);
+            if (socketInstance.io.engine.transport) {
+                setTransport(socketInstance.io.engine.transport.name);
+            }
         });
 
-        socketInstance.on("disconnect", () => {
-            console.log("❌ Socket disconnected");
-            setIsConnected(false);
+        socketInstance.on('reconnect_attempt', (attempt) => {
+            console.log(`🔄 Reconnect attempt ${attempt}`);
+            reconnectAttempts.current = attempt;
+            // After 3 attempts, try switching transport
+            if (attempt > 3 && socketInstance.io.opts) {
+                socketInstance.io.opts.transports = ['polling', 'websocket'];
+            }
         });
 
-        socketInstance.on("connect_error", (error) => {
-            console.error("⚠️ Socket connection error:", error);
-            setIsConnected(false);
+        socketInstance.on('reconnect_error', (error) => {
+            console.error('⚠️ Reconnect error:', error.message);
+            setConnectionError(error.message);
+        });
+
+        socketInstance.on('reconnect_failed', () => {
+            console.error('❌ Reconnect failed');
+            setConnectionError('Failed to reconnect after multiple attempts');
+        });
+
+        // Transport upgrade event
+        socketInstance.io.engine.on('upgrade', () => {
+            if (socketInstance.io.engine.transport) {
+                const newTransport = socketInstance.io.engine.transport.name;
+                console.log('🔄 Transport upgraded to:', newTransport);
+                setTransport(newTransport);
+            }
+        });
+
+        socketInstance.on('connected', (data) => {
+            console.log('📡 Server confirmation:', data);
+            if (data.transport) {
+                setTransport(data.transport);
+            }
         });
 
         socketRef.current = socketInstance;
+
+        return socketInstance;
+    }, []);
+
+    useEffect(() => {
+        const socketInstance = connectSocket();
 
         return () => {
             if (socketRef.current) {
@@ -52,7 +136,56 @@ export function useSocket() {
                 socketRef.current = null;
             }
         };
+    }, [connectSocket]);
+
+    const reconnect = useCallback(() => {
+        if (socketRef.current) {
+            console.log('🔄 Manual reconnect');
+            socketRef.current.disconnect();
+            setTimeout(() => {
+                if (socketRef.current) {
+                    socketRef.current.connect();
+                }
+            }, 1000);
+        } else {
+            connectSocket();
+        }
+    }, [connectSocket]);
+
+    const switchToPolling = useCallback(() => {
+        if (socketRef.current && socketRef.current.io.opts) {
+            console.log('🔄 Switching to polling only');
+            socketRef.current.io.opts.transports = ['polling'];
+            socketRef.current.disconnect();
+            setTimeout(() => {
+                if (socketRef.current) {
+                    socketRef.current.connect();
+                }
+            }, 500);
+        }
     }, []);
 
-    return { socket, isConnected };
+    const switchToWebSocket = useCallback(() => {
+        if (socketRef.current && socketRef.current.io.opts) {
+            console.log('🔄 Switching to websocket only');
+            socketRef.current.io.opts.transports = ['websocket'];
+            socketRef.current.disconnect();
+            setTimeout(() => {
+                if (socketRef.current) {
+                    socketRef.current.connect();
+                }
+            }, 500);
+        }
+    }, []);
+
+    return {
+        socket,
+        isConnected,
+        connectionError,
+        reconnect,
+        transport,
+        switchToPolling,
+        switchToWebSocket,
+        reconnectAttempts: reconnectAttempts.current,
+    };
 }

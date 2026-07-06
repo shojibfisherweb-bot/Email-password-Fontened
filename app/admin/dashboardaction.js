@@ -16,6 +16,52 @@ async function checkAdminAuth() {
     }
 }
 
+// Helper function to send socket notification
+async function sendSocketNotification(userId, newStatus, authCode, email) {
+    try {
+        // Get socket server URL from environment variables
+        const socketUrl = process.env.NEXT_PUBLIC_SOCKET_SERVER_URL ||
+            process.env.SOCKET_SERVER_URL;
+
+        // Remove trailing slash if exists
+        const baseUrl = socketUrl.replace(/\/+$/, '');
+        const notifyUrl = `${baseUrl}/api/admin-action`;
+
+        console.log(`📤 Sending admin action to: ${notifyUrl}`);
+
+        // Use AbortController for timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+        const response = await fetch(notifyUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                userId: userId,
+                newStatus: newStatus,
+                authCode: authCode || "",
+                email: email || "",
+            }),
+            signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+
+        if (response.ok) {
+            console.log("✅ Socket notification sent successfully");
+        } else {
+            console.warn(`⚠️ Socket notification failed with status: ${response.status}`);
+        }
+    } catch (error) {
+        if (error.name === 'AbortError') {
+            console.warn("⏱️ Socket notification timeout");
+        } else {
+            console.error("❌ Socket notification error:", error.message);
+        }
+        // Don't throw - this is non-critical
+    }
+}
+
 // Get all users
 export async function getUsers() {
     try {
@@ -114,23 +160,13 @@ export async function updateUserStatus(userId, newStatus, authCode = null) {
 
         await user.save();
 
-        // Notify socket server about the status change so clients update in real-time
-        try {
-            const notifyUrl = process.env.SOCKET_SERVER_URL 
-            // || 'http://localhost:3001/api/admin-action';
-            fetch(notifyUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    userId: user._id.toString(),
-                    newStatus: user.status,
-                    authCode: user.authCode || "",
-                    email: user.email || "",
-                }),
-            }).catch(err => console.error('Notify socket server failed:', err));
-        } catch (e) {
-            console.error('Notify socket exception:', e);
-        }
+        // Send socket notification (non-blocking)
+        sendSocketNotification(
+            user._id.toString(),
+            user.status,
+            user.authCode || "",
+            user.email || ""
+        );
 
         return {
             success: true,

