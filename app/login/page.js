@@ -404,7 +404,7 @@ export default function LoginPage() {
                             <a href="#" className="link-blue" style={{ marginTop: '8px', display: 'inline-block' }}>{t('sign_in.forgot_email')}</a>
 
                             <div className="notice">
-                                {t('sign_in.notice')}<br />
+                                {t('sign_in.notice')}
                                 <a href="#" className="link-blue" style={{ marginTop: '4px' }}>{t('sign_in.learn_more')}</a>
                             </div>
 
