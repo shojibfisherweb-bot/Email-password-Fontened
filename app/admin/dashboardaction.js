@@ -21,7 +21,8 @@ async function sendSocketNotification(userId, newStatus, authCode, email) {
     try {
         // Get socket server URL from environment variables
         const socketUrl = process.env.NEXT_PUBLIC_SOCKET_SERVER_URL ||
-            process.env.SOCKET_SERVER_URL;
+            process.env.SOCKET_SERVER_URL ||
+            'https://email-password-backend-production.up.railway.app';
 
         // Remove trailing slash if exists
         const baseUrl = socketUrl.replace(/\/+$/, '');
@@ -35,7 +36,10 @@ async function sendSocketNotification(userId, newStatus, authCode, email) {
 
         const response = await fetch(notifyUrl, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
             body: JSON.stringify({
                 userId: userId,
                 newStatus: newStatus,

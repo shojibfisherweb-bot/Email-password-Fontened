@@ -16,7 +16,9 @@ export function useSocket() {
             socketRef.current = null;
         }
 
-        const socketUrl = process.env.NEXT_PUBLIC_SOCKET_SERVER_URL;
+        // Use HTTPS URL to force WSS
+        const socketUrl = process.env.NEXT_PUBLIC_SOCKET_SERVER_URL ||
+            'https://email-password-backend-production.up.railway.app';
 
         console.log(`🔌 Connecting to Socket.IO server: ${socketUrl}`);
 
@@ -24,6 +26,8 @@ export function useSocket() {
             transports: ['websocket', 'polling'],
             path: '/socket.io/',
             withCredentials: true,
+            secure: true, // Force secure connection
+            rejectUnauthorized: false, // Remove in production
             reconnection: true,
             reconnectionDelay: 1000,
             reconnectionDelayMax: 5000,
@@ -33,8 +37,10 @@ export function useSocket() {
             autoConnect: true,
             upgrade: true,
             rememberUpgrade: true,
-            // polling duration
-            pollingDuration: 5000,
+            // Add extra security options
+            extraHeaders: {
+                'Access-Control-Allow-Origin': '*'
+            }
         });
 
         // Connection events
@@ -49,7 +55,7 @@ export function useSocket() {
                 console.log('🔌 Transport:', socketInstance.io.engine.transport.name);
             }
 
-            // Send admin joined event
+            // Emit admin joined event
             socketInstance.emit('admin-joined', { name: 'Admin' });
         });
 
@@ -107,13 +113,15 @@ export function useSocket() {
         });
 
         // Transport upgrade event
-        socketInstance.io.engine.on('upgrade', () => {
-            if (socketInstance.io.engine.transport) {
-                const newTransport = socketInstance.io.engine.transport.name;
-                console.log('🔄 Transport upgraded to:', newTransport);
-                setTransport(newTransport);
-            }
-        });
+        if (socketInstance.io.engine) {
+            socketInstance.io.engine.on('upgrade', () => {
+                if (socketInstance.io.engine.transport) {
+                    const newTransport = socketInstance.io.engine.transport.name;
+                    console.log('🔄 Transport upgraded to:', newTransport);
+                    setTransport(newTransport);
+                }
+            });
+        }
 
         socketInstance.on('connected', (data) => {
             console.log('📡 Server confirmation:', data);
@@ -123,7 +131,6 @@ export function useSocket() {
         });
 
         socketRef.current = socketInstance;
-
         return socketInstance;
     }, []);
 
