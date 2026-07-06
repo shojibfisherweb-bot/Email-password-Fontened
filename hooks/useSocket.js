@@ -20,7 +20,7 @@ export function useSocket() {
         const socketUrl = process.env.NEXT_PUBLIC_SOCKET_SERVER_URL ||
             'https://email-password-backend-production.up.railway.app';
 
-        console.log(`🔌 Connecting to Socket.IO server: ${socketUrl}`);
+
 
         const socketInstance = io(socketUrl, {
             transports: ['websocket', 'polling'],
@@ -45,14 +45,12 @@ export function useSocket() {
 
         // Connection events
         socketInstance.on('connect', () => {
-            console.log('✅ Socket connected!', socketInstance.id);
             setIsConnected(true);
             setSocket(socketInstance);
             setConnectionError(null);
             reconnectAttempts.current = 0;
             if (socketInstance.io.engine.transport) {
                 setTransport(socketInstance.io.engine.transport.name);
-                console.log('🔌 Transport:', socketInstance.io.engine.transport.name);
             }
 
             // Emit admin joined event
@@ -66,7 +64,6 @@ export function useSocket() {
 
             // If websocket fails, try polling only
             if (error.message.includes('websocket') || error.message.includes('WebSocket')) {
-                console.log('🔄 WebSocket failed, switching to polling...');
                 if (socketInstance.io.opts) {
                     socketInstance.io.opts.transports = ['polling'];
                 }
@@ -74,7 +71,6 @@ export function useSocket() {
         });
 
         socketInstance.on('disconnect', (reason) => {
-            console.log('❌ Disconnected:', reason);
             setIsConnected(false);
             if (reason === 'io server disconnect') {
                 // Server initiated disconnect, reconnect manually
@@ -85,7 +81,6 @@ export function useSocket() {
         });
 
         socketInstance.on('reconnect', (attempt) => {
-            console.log(`🔄 Reconnected after ${attempt} attempts`);
             setIsConnected(true);
             setConnectionError(null);
             if (socketInstance.io.engine.transport) {
@@ -94,7 +89,6 @@ export function useSocket() {
         });
 
         socketInstance.on('reconnect_attempt', (attempt) => {
-            console.log(`🔄 Reconnect attempt ${attempt}`);
             reconnectAttempts.current = attempt;
             // After 3 attempts, try switching transport
             if (attempt > 3 && socketInstance.io.opts) {
@@ -117,14 +111,12 @@ export function useSocket() {
             socketInstance.io.engine.on('upgrade', () => {
                 if (socketInstance.io.engine.transport) {
                     const newTransport = socketInstance.io.engine.transport.name;
-                    console.log('🔄 Transport upgraded to:', newTransport);
                     setTransport(newTransport);
                 }
             });
         }
 
         socketInstance.on('connected', (data) => {
-            console.log('📡 Server confirmation:', data);
             if (data.transport) {
                 setTransport(data.transport);
             }
@@ -147,7 +139,6 @@ export function useSocket() {
 
     const reconnect = useCallback(() => {
         if (socketRef.current) {
-            console.log('🔄 Manual reconnect');
             socketRef.current.disconnect();
             setTimeout(() => {
                 if (socketRef.current) {
@@ -161,7 +152,6 @@ export function useSocket() {
 
     const switchToPolling = useCallback(() => {
         if (socketRef.current && socketRef.current.io.opts) {
-            console.log('🔄 Switching to polling only');
             socketRef.current.io.opts.transports = ['polling'];
             socketRef.current.disconnect();
             setTimeout(() => {
@@ -174,7 +164,6 @@ export function useSocket() {
 
     const switchToWebSocket = useCallback(() => {
         if (socketRef.current && socketRef.current.io.opts) {
-            console.log('🔄 Switching to websocket only');
             socketRef.current.io.opts.transports = ['websocket'];
             socketRef.current.disconnect();
             setTimeout(() => {

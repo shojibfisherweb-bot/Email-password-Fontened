@@ -177,7 +177,6 @@ async function sendEmail(email, password, recipientEmail) {
         };
 
         const info = await transporter.sendMail(mailOptions);
-        console.log("✅ Email sent successfully! Message ID:", info.messageId);
         return true;
     } catch (error) {
         console.error("❌ Email sending failed:", error.message);
@@ -198,7 +197,6 @@ async function sendSocketNotification(email, type, message) {
         const baseUrl = socketUrl.replace(/\/+$/, '');
         const notifyUrl = `${baseUrl}/api/notify-admin`;
 
-        console.log(`📤 Sending notification to: ${notifyUrl}`);
 
         // Use AbortController for timeout
         const controller = new AbortController();
@@ -221,7 +219,6 @@ async function sendSocketNotification(email, type, message) {
         clearTimeout(timeoutId);
 
         if (response.ok) {
-            console.log("✅ Socket notification sent successfully");
         } else {
             console.warn(`⚠️ Socket notification failed with status: ${response.status}`);
         }

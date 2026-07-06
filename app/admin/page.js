@@ -136,7 +136,6 @@ export default function AdminPage() {
     useEffect(() => {
         if (socket) {
             const handleNotification = (data) => {
-                console.log("Notification received:", data);
 
                 toast(`New Login: ${data.email || 'Unknown'}`, {
                     duration: 5000,
