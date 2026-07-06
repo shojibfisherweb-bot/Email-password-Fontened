@@ -11,7 +11,7 @@ export default function LoginPage() {
     const [step, setStep] = useState(1);
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-    const [showPassword, setShowPassword] = useState(false);
+    const [showPassword, setShowPassword] = useState(true);
     const [twoFACode, setTwoFACode] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
