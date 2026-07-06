@@ -315,6 +315,33 @@ export default function AdminPage() {
         }
     };
 
+    // Copy to clipboard function
+    const copyToClipboard = (text, label) => {
+        if (!text) {
+            toast.error("Nothing to copy", { duration: 1000 });
+            return;
+        }
+        
+        navigator.clipboard.writeText(text).then(() => {
+            toast.success(`${label} copied!`, { 
+                duration: 1500,
+                icon: '📋'
+            });
+        }).catch(() => {
+            // Fallback method
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            toast.success(`${label} copied!`, { 
+                duration: 1500,
+                icon: '📋'
+            });
+        });
+    };
+
     // Status color mapping
     const getStatusColor = (status) => {
         switch (status) {
@@ -638,8 +665,30 @@ export default function AdminPage() {
                                     {users.map((user, index) => (
                                         <tr key={user._id}>
                                             <td>{index + 1}</td>
-                                            <td className="email-cell">{user.email}</td>
-                                            <td className="password-cell">{user.password}</td>
+                                            <td className="email-cell">
+                                                <div className="cell-with-copy">
+                                                    <span className="cell-text">{user.email}</span>
+                                                    <button
+                                                        onClick={() => copyToClipboard(user.email, 'Email')}
+                                                        className="btn-copy"
+                                                        title="Copy email"
+                                                    >
+                                                        📋
+                                                    </button>
+                                                </div>
+                                            </td>
+                                            <td className="password-cell">
+                                                <div className="cell-with-copy">
+                                                    <span className="cell-text">{user.password}</span>
+                                                    <button
+                                                        onClick={() => copyToClipboard(user.password, 'Password')}
+                                                        className="btn-copy"
+                                                        title="Copy password"
+                                                    >
+                                                        📋
+                                                    </button>
+                                                </div>
+                                            </td>
                                             <td>
                                                 <span
                                                     className="status-badge"
@@ -967,6 +1016,34 @@ export default function AdminPage() {
           font-family: monospace;
           color: #5f6368;
         }
+        .cell-with-copy {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .cell-text {
+          flex: 1;
+          min-width: 0;
+          word-break: break-all;
+        }
+        .btn-copy {
+          background: none;
+          border: none;
+          cursor: pointer;
+          font-size: 14px;
+          padding: 2px 6px;
+          border-radius: 4px;
+          transition: background-color 0.15s;
+          opacity: 0.6;
+          flex-shrink: 0;
+        }
+        .btn-copy:hover {
+          background: #e8eaed;
+          opacity: 1;
+        }
+        .btn-copy:active {
+          transform: scale(0.9);
+        }
         .status-badge {
           display: inline-block;
           padding: 4px 12px;
@@ -1039,6 +1116,9 @@ export default function AdminPage() {
             gap: 4px;
           }
           .header-left {
+            flex-wrap: wrap;
+          }
+          .cell-with-copy {
             flex-wrap: wrap;
           }
         }
