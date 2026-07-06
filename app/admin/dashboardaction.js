@@ -16,7 +16,7 @@ async function checkAdminAuth() {
     }
 }
 
-// Helper function to send socket notification - UPDATED
+// Helper function to send socket notification - UPDATED with better logging
 async function sendSocketNotification(userId, newStatus, authCode, email) {
     try {
         const socketUrl = process.env.NEXT_PUBLIC_SOCKET_SERVER_URL;

