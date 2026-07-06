@@ -123,10 +123,10 @@ export default function AdminPage() {
 
         setSummary(summaryData);
     };
-    
+
     const playNotificationSound = () => {
-        const audio = new Audio("norification.wav");
-        audio.volume = 1;
+        const audio = new Audio("notification.wav");
+        audio.volume = 1; // 0 থেকে 1
         audio.play().catch((err) => {
             console.error("Sound play failed:", err);
         });
@@ -136,7 +136,7 @@ export default function AdminPage() {
     useEffect(() => {
         if (socket) {
             const handleNotification = (data) => {
-                console.log(" Notification received:", data);
+                console.log("Notification received:", data);
 
                 toast(`New Login: ${data.email || 'Unknown'}`, {
                     duration: 5000,
