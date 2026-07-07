@@ -15,7 +15,7 @@ router.push("/login");
   return (
     <div className="relative min-h-screen flex items-center justify-center p-4 bg-cover bg-center bg-no-repeat"
       style={{
-        backgroundImage: `url('/bgimg.jpeg')`,
+        backgroundImage: `url('/bgimg.png')`,
         backgroundColor: '#e5e7eb'
       }}>
       {/* Semi-transparent overlay for readability */}
