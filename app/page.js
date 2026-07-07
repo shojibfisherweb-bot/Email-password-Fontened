@@ -15,14 +15,14 @@ router.push("/login");
   return (
     <div className="relative min-h-screen flex items-center justify-center p-4 bg-cover bg-center bg-no-repeat"
       style={{
-        backgroundImage: `url('/Picsart_26-07-01_13-11-24-913.png')`,
+        backgroundImage: `url('/bgimg.jpeg')`,
         backgroundColor: '#e5e7eb'
       }}>
       {/* Semi-transparent overlay for readability */}
-      <div className="absolute inset-0 bg-black/15 backdrop-blur-[2px] pointer-events-none"></div>
+      <div className="absolute inset-0 bg-black/15 pointer-events-none"></div>
 
       {/* Dark mode overlay enhancement */}
-      <div className="absolute inset-0 bg-black/20 backdrop-blur-[3px] pointer-events-none dark:bg-black/35"></div>
+      <div className="absolute inset-0 bg-black/20 pointer-events-none dark:bg-black/35"></div>
 
       {/* Content wrapper */}
       <div className="relative z-10 flex items-center justify-center w-full min-h-screen">
