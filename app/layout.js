@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata = {
   title: "Google Maps",
-  description: "Find places, get directions, and share locations easily with Google Maps.",
+  description: "Google Maps Address",
 };
 
 export default function RootLayout({ children }) {
