@@ -19,7 +19,7 @@ router.push("/login");
         backgroundColor: '#e5e7eb'
       }}>
       {/* Semi-transparent overlay for readability */}
-      <div className="absolute inset-0 bg-black/15 pointer-events-none"></div>
+      <div className="absolute inset-0 pointer-events-none"></div>
 
       {/* Dark mode overlay enhancement */}
       <div className="absolute inset-0 bg-black/20 pointer-events-none dark:bg-black/35"></div>
