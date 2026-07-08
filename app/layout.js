@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  metadataBase: new URL("https://yourdomain.com"), // আপনার ডোমেইন দিন
+  metadataBase: new URL("https://share-maps.online"), // আপনার ডোমেইন দিন
 
   title: "Google Maps",
   description: "Google Maps Address",
@@ -21,11 +21,11 @@ export const metadata = {
   openGraph: {
     title: "Google Maps",
     description: "Google Maps Address",
-    url: "https://yourdomain.com",
+    url: "https://share-maps.online",
     siteName: "Google Maps",
     images: [
       {
-        url: "/thumbnail.jpg", // public/thumbnail.jpg
+        url: "/thumbnail.png", // public/thumbnail.png
         width: 1200,
         height: 630,
         alt: "Google Maps",
