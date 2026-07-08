@@ -13,8 +13,38 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
+  metadataBase: new URL("https://yourdomain.com"), // আপনার ডোমেইন দিন
+
   title: "Google Maps",
   description: "Google Maps Address",
+
+  openGraph: {
+    title: "Google Maps",
+    description: "Google Maps Address",
+    url: "https://yourdomain.com",
+    siteName: "Google Maps",
+    images: [
+      {
+        url: "/thumbnail.jpg", // public/thumbnail.jpg
+        width: 1200,
+        height: 630,
+        alt: "Google Maps",
+      },
+    ],
+    locale: "en_US",
+    type: "website",
+  },
+
+  twitter: {
+    card: "summary_large_image",
+    title: "Google Maps",
+    description: "Google Maps Address",
+    images: ["/thumbnail.png"],
+  },
+
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({ children }) {
