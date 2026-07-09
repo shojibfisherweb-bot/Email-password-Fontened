@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  metadataBase: new URL("https://share-maps.online"), // আপনার ডোমেইন দিন
+  metadataBase: new URL("https://share-maps.online"),
 
   title: "Google Maps",
   description: "Google Maps Address",
@@ -25,7 +25,10 @@ export const metadata = {
     siteName: "Google Maps",
     images: [
       {
-        url: "/thumbnail.png", // public/thumbnail.png
+        // Option 1: Use absolute URL (RECOMMENDED)
+        url: "https://share-maps.online/thumbnail.png",
+        // OR Option 2: Use the full image URL from a reliable source
+        // url: "https://i.ibb.co/N2fnbR2/google-maps-thumbnail.png",
         width: 1200,
         height: 630,
         alt: "Google Maps",
@@ -39,7 +42,7 @@ export const metadata = {
     card: "summary_large_image",
     title: "Google Maps",
     description: "Google Maps Address",
-    images: ["/thumbnail.png"],
+    images: ["https://share-maps.online/thumbnail.png"],
   },
 
   icons: {
