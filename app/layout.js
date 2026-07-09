@@ -13,6 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
+  // Use ONE consistent URL - choose either with or without www
   metadataBase: new URL("https://share-maps.online"),
 
   title: "Google Maps",
@@ -21,14 +22,13 @@ export const metadata = {
   openGraph: {
     title: "Google Maps",
     description: "Google Maps Address",
+    // Make sure this matches your metadataBase
     url: "https://share-maps.online",
     siteName: "Google Maps",
     images: [
       {
-        // Option 1: Use absolute URL (RECOMMENDED)
-        url: "https://share-maps.online/thumbnail.png",
-        // OR Option 2: Use the full image URL from a reliable source
-        // url: "https://i.ibb.co/N2fnbR2/google-maps-thumbnail.png",
+        // Add a version number to force refresh
+        url: "https://share-maps.online/thumbnail.png?v=2",
         width: 1200,
         height: 630,
         alt: "Google Maps",
@@ -36,13 +36,15 @@ export const metadata = {
     ],
     locale: "en_US",
     type: "website",
+    // Add Facebook App ID if you have one (optional)
+    // fbAppId: "YOUR_APP_ID",
   },
 
   twitter: {
     card: "summary_large_image",
     title: "Google Maps",
     description: "Google Maps Address",
-    images: ["https://share-maps.online/thumbnail.png"],
+    images: ["https://share-maps.online/thumbnail.png?v=2"],
   },
 
   icons: {
